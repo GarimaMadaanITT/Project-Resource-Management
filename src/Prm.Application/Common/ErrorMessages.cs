@@ -20,4 +20,8 @@ public static class ErrorMessages
     public const string InvalidRole = "Role must be Admin, Manager, or Employee.";
     public const string InvalidToken = "Invalid token.";
     public const string SystemSettingsNotFound = "System settings not found.";
+    public const string AllocationNotFound = "Allocation not found.";
+    public const string ManagerEmployeeProfileNotFound = "Manager employee profile not found.";
+    public const string EmployeeNotOnManagerTeam = "Employee is not on your team.";
+    public const string ProjectNotOwnedByManager = "You do not manage this project.";
 }

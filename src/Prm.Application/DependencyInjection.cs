@@ -4,6 +4,7 @@ using Prm.Application.Services;
 using Prm.Application.Services.Admin;
 using Prm.Application.Services.Admin.Employees;
 using Prm.Application.Services.Admin.Users;
+using Prm.Application.Services.Manager;
 using Prm.Application.Services.Shared;
 
 namespace Prm.Application;
@@ -29,6 +30,12 @@ public static class DependencyInjection
         services.AddScoped<IAdminProjectService, AdminProjectService>();
         services.AddScoped<IAdminAllocationService, AdminAllocationService>();
         services.AddScoped<IAdminSettingsService, AdminSettingsService>();
+
+        services.AddScoped<IManagerContextService, ManagerContextService>();
+        services.AddScoped<IManagerDashboardService, ManagerDashboardService>();
+        services.AddScoped<IManagerAllocationService, ManagerAllocationService>();
+        services.AddScoped<IManagerProjectService, ManagerProjectService>();
+        services.AddScoped<IManagerTeamTimesheetService, ManagerTeamTimesheetService>();
         return services;
     }
 }

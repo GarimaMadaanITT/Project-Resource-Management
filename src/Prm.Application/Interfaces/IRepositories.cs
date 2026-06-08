@@ -27,12 +27,22 @@ public interface IEmployeeRepository
     Task<IReadOnlyList<Allocation>> GetActiveAllocationsAsync(int employeeId, CancellationToken cancellationToken = default);
     Task EndActiveAllocationsAsync(int employeeId, DateOnly endDate, CancellationToken cancellationToken = default);
     Task<bool> HasActiveTeamMembersAsync(int managerEmployeeId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Employee>> GetTeamByManagerEmployeeIdAsync(
+        int managerEmployeeId,
+        bool activeOnly = true,
+        CancellationToken cancellationToken = default);
+    Task<Employee?> GetTeamMemberAsync(
+        int managerEmployeeId,
+        int employeeId,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IProjectRepository
 {
     Task<IReadOnlyList<Project>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Project>> GetByManagerUserIdAsync(int managerUserId, CancellationToken cancellationToken = default);
     Task<Project?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
+    Task<Project?> GetByIdWithAllocationsAsync(int id, CancellationToken cancellationToken = default);
     Task AddAsync(Project project, CancellationToken cancellationToken = default);
     Task UpdateAsync(Project project, CancellationToken cancellationToken = default);
     Task<Milestone?> GetMilestoneAsync(int projectId, int milestoneId, CancellationToken cancellationToken = default);
@@ -45,6 +55,27 @@ public interface IProjectRepository
 public interface IAllocationRepository
 {
     Task<IReadOnlyList<Allocation>> GetAllAsync(int? employeeId, int? projectId, CancellationToken cancellationToken = default);
+    Task<Allocation?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Allocation>> GetByEmployeeIdAsync(int employeeId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Allocation>> GetActiveByProjectIdAsync(int projectId, CancellationToken cancellationToken = default);
+    Task AddAsync(Allocation allocation, CancellationToken cancellationToken = default);
+    Task UpdateAsync(Allocation allocation, CancellationToken cancellationToken = default);
+}
+
+public interface ITimesheetRepository
+{
+    Task<IReadOnlyList<Timesheet>> GetTeamTimesheetsByWeekAsync(
+        IReadOnlyList<int> teamEmployeeIds,
+        DateOnly weekStart,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<string>> GetRecentActivityTagsAsync(
+        int employeeId,
+        int weeks = 4,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<TimesheetEntry>> GetEntriesForEmployeesAndWeekAsync(
+        IReadOnlyList<int> employeeIds,
+        DateOnly weekStart,
+        CancellationToken cancellationToken = default);
 }
 
 public interface ISystemSettingsRepository
