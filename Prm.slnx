@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Prm.Api/Prm.Api.csproj" />
+    <Project Path="src/Prm.Application/Prm.Application.csproj" />
+    <Project Path="src/Prm.Domain/Prm.Domain.csproj" />
+    <Project Path="src/Prm.Infrastructure/Prm.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Prm.Tests.Integration/Prm.Tests.Integration.csproj" />
+    <Project Path="tests/Prm.Tests/Prm.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Prm.DbReset/Prm.DbReset.csproj" />
+  </Folder>
+</Solution>
