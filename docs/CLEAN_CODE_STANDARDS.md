@@ -42,7 +42,16 @@ Admin services use specialized internal services with thin facades:
 
 ## Logging
 
-Use `ILogger<T>`. Log security-relevant actions (user create/deactivate, password reset, project create/update, manager assignment, employee deactivation). Never log passwords, hashes, tokens, connection strings, or API keys.
+Use `ILogger<T>`. Log security-relevant and operational actions. Never log passwords, hashes, tokens, connection strings, or API keys.
+
+**Admin (existing):** user create/deactivate, password reset, project create/update, manager assignment, employee deactivation.
+
+**Manager (Phase 5+):**
+- Allocation created — `Information` with AllocationId, ProjectId, EmployeeId, Utilisation, ManagerUserId
+- Allocation ended — `Information` with AllocationId, EndDate, ManagerUserId
+- Employee status updated after allocation change — `Information`
+- Manager scope denied — `Warning` with ManagerUserId, resource type, resource id
+- Allocation validation rejected (overlap) — `Warning` with EmployeeId, date, utilisation totals
 
 ## Audit trail
 

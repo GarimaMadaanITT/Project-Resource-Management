@@ -81,6 +81,9 @@ public class PrmWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
     public async Task<string> LoginAsAdminAsync(HttpClient client) =>
         await LoginAndChangePasswordAsync(client, "admin", "Admin@1234", "Admin@5678");
 
+    public async Task<string> LoginAsManagerAsync(HttpClient client) =>
+        await LoginAsync(client, "ankit.shah", "Manager@1234");
+
     public async Task<string> LoginAsync(HttpClient client, string username, string password)
     {
         var response = await client.PostAsJsonAsync("/api/auth/login", new { username, password });

@@ -22,10 +22,28 @@ public class ProjectRepository : IProjectRepository
             .OrderBy(p => p.Id)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<Project>> GetByManagerUserIdAsync(
+        int managerUserId,
+        CancellationToken cancellationToken = default) =>
+        await _context.Projects
+            .AsNoTracking()
+            .Include(p => p.Manager)
+            .Include(p => p.Milestones)
+            .Where(p => p.ManagerUserId == managerUserId)
+            .OrderBy(p => p.Id)
+            .ToListAsync(cancellationToken);
+
     public Task<Project?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
         _context.Projects
             .Include(p => p.Manager)
             .Include(p => p.Milestones)
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+
+    public Task<Project?> GetByIdWithAllocationsAsync(int id, CancellationToken cancellationToken = default) =>
+        _context.Projects
+            .Include(p => p.Manager)
+            .Include(p => p.Milestones)
+            .Include(p => p.Allocations).ThenInclude(a => a.Employee).ThenInclude(e => e.User)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
     public async Task AddAsync(Project project, CancellationToken cancellationToken = default)

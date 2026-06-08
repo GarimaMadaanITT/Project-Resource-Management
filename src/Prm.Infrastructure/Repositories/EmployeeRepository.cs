@@ -90,4 +90,36 @@ public class EmployeeRepository : IEmployeeRepository
         _context.Employees.AnyAsync(
             e => e.ManagerId == managerEmployeeId && e.IsActive,
             cancellationToken);
+
+    public async Task<IReadOnlyList<Employee>> GetTeamByManagerEmployeeIdAsync(
+        int managerEmployeeId,
+        bool activeOnly = true,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.Employees
+            .AsNoTracking()
+            .Include(e => e.User)
+            .Include(e => e.Skills).ThenInclude(s => s.Skill)
+            .Include(e => e.Allocations).ThenInclude(a => a.Project)
+            .Where(e => e.ManagerId == managerEmployeeId);
+
+        if (activeOnly)
+        {
+            query = query.Where(e => e.IsActive);
+        }
+
+        return await query.OrderBy(e => e.Id).ToListAsync(cancellationToken);
+    }
+
+    public Task<Employee?> GetTeamMemberAsync(
+        int managerEmployeeId,
+        int employeeId,
+        CancellationToken cancellationToken = default) =>
+        _context.Employees
+            .Include(e => e.User)
+            .Include(e => e.Skills).ThenInclude(s => s.Skill)
+            .Include(e => e.Allocations).ThenInclude(a => a.Project)
+            .FirstOrDefaultAsync(
+                e => e.Id == employeeId && e.ManagerId == managerEmployeeId,
+                cancellationToken);
 }
