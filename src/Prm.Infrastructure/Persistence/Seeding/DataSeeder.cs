@@ -133,7 +133,7 @@ public class DataSeeder
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        var weekStart = new DateOnly(2026, 5, 5);
+        var weekStart = new DateOnly(2026, 5, 4);
         var raviTimesheet = new Timesheet
         {
             EmployeeId = ravi.Id,
@@ -161,7 +161,7 @@ public class DataSeeder
         {
             await _context.Database.ExecuteSqlRawAsync(
                 """
-                TRUNCATE TABLE timesheet_entries, timesheets, allocations, employee_skills, milestones, employees, projects, skills, users, system_settings
+                TRUNCATE TABLE audit_logs, timesheet_entries, timesheets, allocations, employee_skills, milestones, employees, projects, skills, users, system_settings
                 RESTART IDENTITY CASCADE;
                 """,
                 cancellationToken);
@@ -170,6 +170,7 @@ public class DataSeeder
         {
             await _context.TimesheetEntries.ExecuteDeleteAsync(cancellationToken);
             await _context.Timesheets.ExecuteDeleteAsync(cancellationToken);
+            await _context.AuditLogs.ExecuteDeleteAsync(cancellationToken);
             await _context.Allocations.ExecuteDeleteAsync(cancellationToken);
             await _context.EmployeeSkills.ExecuteDeleteAsync(cancellationToken);
             await _context.Milestones.ExecuteDeleteAsync(cancellationToken);
@@ -241,7 +242,7 @@ public class DataSeeder
         string fullName,
         UserRole role,
         string password,
-        bool forcePasswordChange = true,
+        bool forcePasswordChange = false,
         bool isActive = true)
     {
         return new User

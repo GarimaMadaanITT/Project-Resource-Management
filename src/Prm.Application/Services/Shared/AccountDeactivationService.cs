@@ -13,17 +13,20 @@ public class AccountDeactivationService : IAccountDeactivationService
     private readonly IEmployeeRepository _employees;
     private readonly IUserRepository _users;
     private readonly IProjectRepository _projects;
+    private readonly IAuditLogService _auditLog;
     private readonly ILogger<AccountDeactivationService> _logger;
 
     public AccountDeactivationService(
         IEmployeeRepository employees,
         IUserRepository users,
         IProjectRepository projects,
+        IAuditLogService auditLog,
         ILogger<AccountDeactivationService> logger)
     {
         _employees = employees;
         _users = users;
         _projects = projects;
+        _auditLog = auditLog;
         _logger = logger;
     }
 
@@ -37,11 +40,44 @@ public class AccountDeactivationService : IAccountDeactivationService
         EmployeeGuard.EnsureNotAlreadyInactive(employee);
         await ValidateCanDeactivateUserAsync(user, employee.Id, cancellationToken);
 
+        var oldUserSnapshot = AuditSnapshotBuilder.UserSnapshot(user);
+        var oldEmployeeSnapshot = AuditSnapshotBuilder.EmployeeSnapshot(employee);
+
         var today = ActiveDateHelper.TodayUtc;
         var activeAllocations = await _employees.GetActiveAllocationsAsync(employee.Id, cancellationToken);
         await _employees.EndActiveAllocationsAsync(employee.Id, today, cancellationToken);
 
         await ApplyDeactivationAsync(user, employee, cancellationToken);
+
+        var updatedUser = EntityGuard.EnsureFound(
+            await _users.GetByIdAsync(user.Id, cancellationToken),
+            ErrorMessages.UserNotFound);
+        var updatedEmployee = EntityGuard.EnsureFound(
+            await _employees.GetByIdAsync(employee.Id, cancellationToken),
+            ErrorMessages.EmployeeNotFound);
+
+        var adminRole = AuthConstants.RoleName(UserRole.Admin);
+        await _auditLog.AuditAsync(
+            AuditConstants.EntityNames.User,
+            updatedUser.Id,
+            AuditConstants.Actions.Deactivated,
+            oldUserSnapshot,
+            AuditSnapshotBuilder.UserSnapshot(updatedUser),
+            actingUserId,
+            adminRole,
+            AuditConstants.Sources.User,
+            cancellationToken);
+
+        await _auditLog.AuditAsync(
+            AuditConstants.EntityNames.Employee,
+            updatedEmployee.Id,
+            AuditConstants.Actions.Deactivated,
+            oldEmployeeSnapshot,
+            AuditSnapshotBuilder.EmployeeSnapshot(updatedEmployee),
+            actingUserId,
+            adminRole,
+            AuditConstants.Sources.User,
+            cancellationToken);
 
         _logger.LogInformation(
             "Employee deactivated. EmployeeId={EmployeeId}, UserId={UserId}, AllocationsEnded={AllocationCount}",

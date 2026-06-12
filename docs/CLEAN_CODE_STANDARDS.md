@@ -1,6 +1,6 @@
 # PRM Clean Code Standards
 
-This document defines coding standards for the PRM Tool. All new code (including Phase 5 Manager APIs) must follow these rules.
+This document defines coding standards for the PRM Tool. All new code (including Phase 5 Manager and Phase 6 Employee APIs) must follow these rules.
 
 ## Principles
 
@@ -53,9 +53,21 @@ Use `ILogger<T>`. Log security-relevant and operational actions. Never log passw
 - Manager scope denied — `Warning` with ManagerUserId, resource type, resource id
 - Allocation validation rejected (overlap) — `Warning` with EmployeeId, date, utilisation totals
 
+**Employee (Phase 6+):**
+- Timesheet submitted — `Information` with EmployeeId, WeekStart, TotalHours, ProjectCount
+- Timesheet validation rejected — `Warning` with WeekStart, ProjectId, or Reason
+- Timesheet reminder returned — `Information` with EmployeeId, WeekStart
+
 ## Audit trail
 
-Entity timestamps (`AuditableEntity`) track `CreatedAt`/`UpdatedAt`. Structured logs provide operational audit entries. No separate audit log table in current schema.
+Phase 7 adds an `audit_logs` table and `IAuditLogService`:
+
+- **Change-only:** skips writes when serialized `OldValue` equals `NewValue`
+- **Snapshots:** `AuditSnapshotBuilder` produces camelCase JSON for entities (User, Employee, Project, etc.)
+- **Sources:** `User` (API writes), `Scheduler` (background jobs), `System` (reserved)
+- **Query:** Admin-only `GET /api/admin/audit-logs` with pagination and filters
+
+Entity timestamps (`AuditableEntity`) still track `CreatedAt`/`UpdatedAt`. Structured logs complement the DB audit trail for operations.
 
 ## PR checklist
 

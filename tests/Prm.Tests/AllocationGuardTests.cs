@@ -9,9 +9,9 @@ public class AllocationGuardTests
     [Fact]
     public void EnsureEmployeeCanReceiveAllocation_Throws_For_Inactive_Employee()
     {
-        var employee = new Employee { IsActive = false };
+        var resourceProfile = TestDataHelpers.CreateResourceProfile(isActive: false);
 
-        var ex = Assert.Throws<DomainException>(() => AllocationGuard.EnsureEmployeeCanReceiveAllocation(employee));
+        var ex = Assert.Throws<DomainException>(() => AllocationGuard.EnsureEmployeeCanReceiveAllocation(resourceProfile));
         Assert.Contains("Inactive employees cannot receive project allocations", ex.Message);
     }
 }

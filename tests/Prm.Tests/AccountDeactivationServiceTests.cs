@@ -10,15 +10,17 @@ namespace Prm.Tests;
 
 public class AccountDeactivationServiceTests
 {
-    private readonly Mock<IEmployeeRepository> _employees = new();
+    private readonly Mock<IResourceProfileRepository> _resourceProfiles = new();
     private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<IProjectRepository> _projects = new();
+    private readonly Mock<IAuditLogService> _auditLog = new();
 
     [Fact]
     public async Task DeactivateEmployeeAsync_Blocks_Last_Active_Admin()
     {
-        var employee = new Employee { Id = 1, UserId = 1, IsActive = true };
-        var user = new User { Id = 1, Role = UserRole.Admin, IsActive = true, FullName = "Admin" };
+        var user = TestDataHelpers.CreateUser(UserRole.Admin, fullName: "Admin");
+        user.Id = 1;
+        var resourceProfile = new ResourceProfile { Id = 1, UserId = 1, User = user };
 
         _users.Setup(repository => repository.CountActiveAdminsAsync(It.IsAny<int?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
@@ -26,13 +28,14 @@ public class AccountDeactivationServiceTests
         var service = CreateService();
 
         await Assert.ThrowsAsync<ForbiddenException>(() =>
-            service.DeactivateEmployeeAsync(employee, user, 2));
+            service.DeactivateEmployeeAsync(resourceProfile, user, 2));
     }
 
     private AccountDeactivationService CreateService() =>
         new(
-            _employees.Object,
+            _resourceProfiles.Object,
             _users.Object,
             _projects.Object,
+            _auditLog.Object,
             NullLogger<AccountDeactivationService>.Instance);
 }

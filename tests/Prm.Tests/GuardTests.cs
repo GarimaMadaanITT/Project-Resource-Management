@@ -30,14 +30,14 @@ public class EnumGuardTests
     [Fact]
     public void Parse_Throws_For_Invalid_Value()
     {
-        Assert.Throws<DomainException>(() => EnumGuard.Parse<EmployeeStatus>("Invalid", "Status"));
+        Assert.Throws<DomainException>(() => EnumGuard.Parse<ResourceStatus>("Invalid", "Status"));
     }
 
     [Fact]
     public void Parse_Returns_Enum_For_Valid_Value()
     {
-        var status = EnumGuard.Parse<EmployeeStatus>("Bench", "Status");
-        Assert.Equal(EmployeeStatus.Bench, status);
+        var status = EnumGuard.Parse<ResourceStatus>("Bench", "Status");
+        Assert.Equal(ResourceStatus.Bench, status);
     }
 }
 
@@ -47,5 +47,12 @@ public class SettingsValidatorTests
     public void EnsurePositive_Throws_For_Zero()
     {
         Assert.Throws<DomainException>(() => SettingsValidator.EnsurePositive(0, "Scheduler interval"));
+    }
+
+    [Fact]
+    public void ParseProvider_Accepts_Ollama()
+    {
+        var provider = SettingsValidator.ParseProvider("Ollama");
+        Assert.Equal(LlmProviderType.Ollama, provider);
     }
 }

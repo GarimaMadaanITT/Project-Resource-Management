@@ -5,7 +5,7 @@
 **Stack:** .NET 8, Clean Architecture, ASP.NET Core Web API, EF Core, Neon PostgreSQL  
 **Last updated:** June 2026  
 
-This document consolidates the **Business Requirements**, **technical decisions**, **implementation progress**, and **guidance from our development conversations** through Phase 4.
+This document consolidates the **Business Requirements**, **technical decisions**, **implementation progress**, and **guidance from our development conversations** through Phase 6.
 
 ---
 
@@ -39,7 +39,7 @@ The PRM Tool replaces spreadsheet-driven resource planning for an IT services co
 - **Allocations** (utilisation %, date ranges)  
 - **Timesheets** with activity tags  
 - **AI** skill matching and project risk summaries (planned)  
-- **Background scheduler** for utilisation and health (planned)  
+- **Background scheduler** for utilisation, health, and missed-timesheet detection  
 
 ### User Roles (from BRD)
 
@@ -51,8 +51,7 @@ The PRM Tool replaces spreadsheet-driven resource planning for an IT services co
 
 ### Deliverable Scope (Agreed)
 
-- **Now:** REST API backend (Phases 1–4 complete; 5–9 pending)  
-- **Later:** Console CLI or web frontend — decision deferred until backend is complete  
+- **Now:** REST API backend + console client — **Phases 1–9 complete**
 - **BRD source:** [docs/BRD.md](BRD.md) (copied from `PRM_BRD_V4.md`)
 
 ---
@@ -84,11 +83,11 @@ We implement **one phase at a time**, verify, then proceed:
 2. Neon DB connection, schema, seed  
 3. Authentication  
 4. Admin APIs ✅  
-5. Manager APIs (pending)  
-6. Employee APIs (pending)  
-7. Background scheduler (pending)  
-8. AI features (pending)  
-9. Backend completion — tests, README, SOLID docs (pending)  
+5. Manager APIs ✅  
+6. Employee APIs ✅  
+7. Background scheduler ✅  
+8. AI features ✅  
+9. Backend + console completion — tests, README, SOLID docs ✅  
 
 No fixed timeline was enforced — focus is sequential quality.
 
@@ -115,11 +114,11 @@ No fixed timeline was enforced — focus is sequential quality.
 | **3** | ✅ Complete | Login, JWT, change-password, role policies, force-password middleware |
 | **4** | ✅ Complete | All Admin BRD APIs (employees, users, projects, allocations, settings) |
 | **4.5** | ✅ Complete | Enterprise validation layer, HTTP status codes, unit + integration tests |
-| **5** | ⏳ Pending | Manager dashboard, allocation, projects, team timesheets |
-| **6** | ⏳ Pending | Employee timesheets, allocations, reminders |
-| **7** | ⏳ Pending | Background scheduler (utilisation, health, missed timesheets) |
-| **8** | ⏳ Pending | AI skill match + risk summary (Gemini/Groq) |
-| **9** | ⏳ Pending | SOLID/patterns documentation polish, remaining phase tests |
+| **5** | ✅ Complete | Manager dashboard, allocation, projects, team timesheets |
+| **6** | ✅ Complete | Employee timesheets, allocations, reminders |
+| **7** | ✅ Complete | Background scheduler + audit logging (utilisation, health, missed timesheets) |
+| **8** | ✅ Complete | AI skill match + risk summary (Gemini/Groq + deterministic fallback) |
+| **9** | ✅ Complete | Console client (all BRD screens), SOLID/docs, 159 tests |
 
 ---
 
@@ -172,10 +171,10 @@ Your sequence diagrams were adapted as follows:
 |---------------|-------------------|
 | **User / Auth** | `AuthController` → `AuthService` → `UserRepository` (login + change password only) |
 | **Resource Allocation** | Planned Phase 5: `AllocationService` with ≤100% validation |
-| **Timesheet / Task Builder** | Planned Phase 6: `TimesheetService` + builder/validator |
-| **AI Skill Match** | Planned Phase 8: pre-filter capacity → `ILlmProvider` |
-| **AI Risk Summary** | Planned Phase 8: milestone + timesheet facts → LLM |
-| **Scheduler** | Planned Phase 7: `UtilisationService`, `ProjectHealthService`, `TimesheetStatusService` |
+| **Timesheet / Task Builder** | `EmployeeTimesheetService` + `TimesheetValidator` + `TimesheetBuilder` + `ActivityTagCatalog` |
+| **AI Skill Match** | `ManagerAiController` → `ManagerAiService` → capacity pre-filter → `ILlmCompletionService` |
+| **AI Risk Summary** | `ManagerAiService` collects milestone/timesheet facts → `ILlmCompletionService` |
+| **Scheduler** | `PrmSchedulerHostedService` → `SchedulerOrchestrator` → utilisation recompute, project health recompute, missed-timesheet detection (audit-only) |
 
 ---
 
@@ -188,7 +187,7 @@ Your sequence diagrams were adapted as follows:
 - **Use pooler endpoint** (`-pooler` in hostname) for app connections  
 - **SSL:** Required  
 
-### Tables (10)
+### Tables (11)
 
 | Table | Purpose |
 |-------|---------|
@@ -202,11 +201,12 @@ Your sequence diagrams were adapted as follows:
 | `timesheets` | Weekly timesheet headers |
 | `timesheet_entries` | Hours + activity tags per project |
 | `system_settings` | LLM key, provider, scheduler interval, max weekly hours |
+| `audit_logs` | Change-only audit trail (entity, action, JSON snapshots, actor, source) |
 
 ### Migrations
 
-- Migration: `20260606103535_InitialCreate`  
-- Location: `src/Prm.Infrastructure/Migrations/`  
+- Migrations: `20260606103535_InitialCreate`, `20260610091632_AddAuditLogs`  
+- Location: `Server/Prm.Infrastructure/Migrations/`  
 - Applied automatically on API startup via `ApplyMigrationsAndSeedAsync()`
 
 See also: [NEON_SETUP.md](NEON_SETUP.md)
@@ -215,12 +215,12 @@ See also: [NEON_SETUP.md](NEON_SETUP.md)
 
 ## 7. Configuration & Secrets
 
-### User Secrets (`src/Prm.Api`, id: `prm-api-local-dev`)
+### User Secrets (`Server/Prm.Api`, id: `prm-api-local-dev`)
 
 **Never commit these values.**
 
 ```powershell
-cd src/Prm.Api
+cd Server/Prm.Api
 
 # Neon (convert URI to key-value form)
 dotnet user-secrets set "ConnectionStrings:Default" "Host=YOUR_HOST;Database=neondb;Username=YOUR_USER;Password=YOUR_PASSWORD;SSL Mode=Require;Trust Server Certificate=true"
@@ -357,6 +357,83 @@ Implemented in `PasswordValidator` (`Prm.Application/Common/PasswordValidator.cs
 | GET | `/api/admin/settings` | Get settings (API key masked) |
 | PUT | `/api/admin/settings` | Update LLM provider/key, scheduler interval, max hours |
 
+#### Audit logs — `/api/admin/audit-logs`
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/admin/audit-logs` | Paginated audit trail (`?page=&pageSize=&entityName=&action=&source=&from=&to=`) |
+
+Write operations across Admin, Manager, and Employee APIs record change-only JSON snapshots (`OldValue`/`NewValue`). Scheduler jobs write audits with `Source=Scheduler` and `PerformedByUserId=null`.
+
+### Employee (Phase 6) — requires Employee JWT
+
+#### Timesheets — `/api/employee/timesheets`
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/employee/timesheets/activity-tags` | Predefined BRD activity tags + `AllowsCustomOther` |
+| GET | `/api/employee/timesheets` | Last 12 weeks history (Submitted / Missed / Current) |
+| GET | `/api/employee/timesheets/{weekStart}` | Week detail (`weekStart` must be Monday, `yyyy-MM-dd`) |
+| POST | `/api/employee/timesheets` | Submit timesheet for a week (201 Created) |
+
+**Submit timesheet body example:**
+
+```json
+{
+  "weekStart": "2026-05-11",
+  "entries": [
+    {
+      "projectId": 2,
+      "hours": 18,
+      "activityTags": ["Backend API Development", "Bug Fixing"]
+    }
+  ]
+}
+```
+
+> Use **project ID** from `/api/employee/allocations` or Admin projects — not allocation ID.
+
+**Phase 6 business rules:**
+
+- Week start must be **Monday (UTC)**; cannot submit a **future** week.
+- Duplicate submit for the same employee + week → **409 Conflict**.
+- Hours capped per project from allocation utilisation % and `MaxWeeklyHours` setting.
+- Activity tags required when hours > 0; predefined catalog + custom text when `"Other"` is selected.
+- **Missed** weeks computed on read (no DB row + employee had allocations that week).
+- History window: **12 weeks** (`ValidationConstants.TimesheetHistoryWeeks`).
+
+#### Allocations — `/api/employee/allocations`
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/employee/allocations` | **Active** allocations only; status always `"Active"` |
+
+#### Reminders — `/api/employee/reminders`
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/employee/reminders` | Reminder if **previous completed week** timesheet not submitted |
+
+Previous completed week = `GetCurrentWeekStartUtc().AddDays(-7)`.
+
+### AI (Phase 8) — requires Manager JWT
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/ai/skill-match` | Natural-language team resource search |
+| GET | `/api/ai/risk-summary/{projectId}` | AI project risk paragraph |
+
+**Skill match body example:**
+
+```json
+{
+  "projectId": 1,
+  "requirement": "Need a Java developer with microservices experience for 20 hrs per week"
+}
+```
+
+Capacity pre-filter runs before LLM. Without an API key, deterministic offline ranking is used.
+
 ---
 
 ## 10. Seed Data & Test Credentials
@@ -389,7 +466,7 @@ Seeded on first run when `users` table is empty (`DataSeeder.cs`).
 
 ### Seeded projects
 
-Alpha Portal, Beta CRM, Gamma Rewrite, Delta Migrate — with milestones, allocations, sample timesheet.
+Alpha Portal, Beta CRM, Gamma Rewrite, Delta Migrate — with milestones, allocations, and a sample timesheet for **ravi.kumar** (week starting **2026-05-04**, Monday).
 
 ### System settings defaults
 
@@ -457,7 +534,7 @@ Document these for assignment submission as phases complete.
 | **Single Responsibility (SRP)** | Separate admin services per domain area |
 | **Separation of Concerns** | Domain has no infrastructure references |
 | **Fail Fast** | `DomainException` + validators before DB writes |
-| **Strategy (planned)** | `ILlmProvider` for Gemini/Groq in Phase 8 |
+| **Strategy** | `GeminiLlmProvider` / `GroqLlmProvider` via `LlmCompletionService` (Phase 8) |
 
 ---
 
@@ -468,7 +545,7 @@ Document these for assignment submission as phases complete.
 dotnet restore
 dotnet build
 dotnet test
-dotnet run --project src/Prm.Api
+dotnet run --project Server/Prm.Api
 ```
 
 - **Swagger:** URL shown in console (e.g. `https://localhost:7xxx/swagger`)  
@@ -489,33 +566,19 @@ POST /api/auth/login
 
 ## 14. Pending Work
 
-### Backend phases
-
-- Phase 5 — Manager module  
-- Phase 6 — Employee module  
-- Phase 7 — Background scheduler  
-- Phase 8 — AI (skill match, risk summary)  
-- Phase 9 — Tests, SOLID README section, final polish  
-
-### Features discussed but not built
+All BRD phases are implemented. Optional future enhancements:
 
 | Feature | Notes |
 |---------|-------|
-| **Logout API** | Client-side JWT discard for now; optional `POST /api/auth/logout` + token blacklist |
-| **Console client** | All BRD screens; calls REST with JWT — after backend complete |
-| **Web frontend** | Optional per BRD |
-
-### Manager / Employee / AI endpoints (planned routes)
-
-**Manager:** `/api/manager/dashboard`, `/api/manager/allocations`, `/api/manager/projects`, `/api/manager/timesheets`, `/api/ai/skill-match`, `/api/ai/risk-summary/{projectId}`  
-
-**Employee:** `/api/employee/timesheets`, `/api/employee/allocations`, `/api/employee/reminders`  
+| **Logout API** | Client-side JWT discard satisfies BRD; optional token blacklist |
+| **Web frontend** | Optional per BRD — not required |
+| **Live LLM in dev** | Set Gemini/Groq API key in Admin → System Configuration |
 
 ---
 
 ## 15. Enterprise Validation (Phase 4.5)
 
-Centralized validators live in `src/Prm.Application/Validation/`. Services enforce BRD business rules before any write.
+Centralized validators live in `Server/Prm.Application/Validation/`. Services enforce BRD business rules before any write.
 
 ### HTTP status codes (RFC 7807 ProblemDetails)
 
@@ -525,7 +588,7 @@ Centralized validators live in `src/Prm.Application/Validation/`. Services enfor
 | **401** | `UnauthorizedAccessException` | Invalid login, inactive account |
 | **403** | `ForbiddenException` | Self-deactivation, last active Admin |
 | **404** | `KeyNotFoundException` | Missing resource |
-| **409** | `ConflictException` | Duplicate username, email, or employee skill |
+| **409** | `ConflictException` | Duplicate username, email, employee skill, or timesheet week |
 
 ### Business rules enforced
 
@@ -537,7 +600,8 @@ Centralized validators live in `src/Prm.Application/Validation/`. Services enfor
 | **Projects** | Name required; manager must exist, be role Manager, and be active; `StartDate < EndDate`; `TotalStoryPoints >= 0` |
 | **Milestones** | Title required; due date within project dates; sum of milestone SP ≤ project total SP |
 | **Users** | All create fields mandatory + email format; duplicate username/email rejected; cannot deactivate self or last Admin |
-| **Allocations** | `AllocationGuard` blocks inactive employees (used when Manager allocation APIs are added in Phase 5) |
+| **Allocations** | `AllocationGuard` blocks inactive employees; employee view shows **active only** |
+| **Timesheets** | Monday week start (UTC); no future weeks; no duplicate submit; allocation-scoped projects; per-project and total hour caps; activity tags when hours > 0; **Missed** status computed on read |
 
 ### ID conventions
 
@@ -550,6 +614,7 @@ Centralized validators live in `src/Prm.Application/Validation/`. Services enfor
 ### Tests
 
 ```powershell
+dotnet test                              # 75 unit + 84 integration (159 total)
 dotnet test tests/Prm.Tests              # Unit tests (validators, guards, mocked services)
 dotnet test tests/Prm.Tests.Integration  # API integration tests (SQLite in-memory; stop running API first)
 ```
@@ -568,4 +633,4 @@ dotnet test tests/Prm.Tests.Integration  # API integration tests (SQLite in-memo
 
 ---
 
-*This documentation reflects the project state after **Phase 4.5**. Update this file as each new phase is completed.*
+*This documentation reflects the project state after **Phase 9** (all BRD phases complete).*

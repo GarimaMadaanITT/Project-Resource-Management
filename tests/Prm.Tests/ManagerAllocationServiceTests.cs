@@ -12,9 +12,10 @@ namespace Prm.Tests;
 public class ManagerAllocationServiceTests
 {
     private readonly Mock<IManagerContextService> _context = new();
-    private readonly Mock<IEmployeeRepository> _employees = new();
+    private readonly Mock<IResourceProfileRepository> _resourceProfiles = new();
     private readonly Mock<IProjectRepository> _projects = new();
     private readonly Mock<IAllocationRepository> _allocations = new();
+    private readonly Mock<IAuditLogService> _auditLog = new();
 
     [Fact]
     public async Task CreateAsync_Does_Not_Save_When_Validation_Fails()
@@ -29,21 +30,20 @@ public class ManagerAllocationServiceTests
                 ManagerUserId = 2
             });
 
-        _employees.Setup(e => e.GetTeamMemberAsync(10, 5, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Employee
+        _resourceProfiles.Setup(e => e.GetTeamMemberAsync(2, 5, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ResourceProfile
             {
                 Id = 5,
-                ManagerId = 10,
-                IsActive = true,
-                User = new User { FullName = "Anil Mehta" }
+                ManagerUserId = 2,
+                User = new User { FullName = "Anil Mehta", IsActive = true }
             });
 
-        _allocations.Setup(a => a.GetByEmployeeIdAsync(5, It.IsAny<CancellationToken>()))
+        _allocations.Setup(a => a.GetByResourceProfileIdAsync(5, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Allocation>
             {
                 new()
                 {
-                    EmployeeId = 5,
+                    ResourceProfileId = 5,
                     UtilisationPercent = 60,
                     FromDate = new DateOnly(2026, 3, 1),
                     ToDate = new DateOnly(2026, 6, 30)
@@ -65,14 +65,15 @@ public class ManagerAllocationServiceTests
     private void SetupManagerContext()
     {
         _context.Setup(c => c.ResolveAsync(2, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ManagerContext(2, 10));
+            .ReturnsAsync(new ManagerContext(2));
     }
 
     private ManagerAllocationService CreateService() =>
         new(
             _context.Object,
-            _employees.Object,
+            _resourceProfiles.Object,
             _projects.Object,
             _allocations.Object,
+            _auditLog.Object,
             NullLogger<ManagerAllocationService>.Instance);
 }

@@ -33,9 +33,9 @@ public class AdminEmployeesIntegrationTests : PrmIntegrationTestBase
     public async Task UpdateEmployee_Department_Succeeds()
     {
         var employees = await Client.GetFromJsonAsync<EmployeeListResponse>("/api/admin/employees");
-        var rohan = employees!.Employees.First(e => e.Name == "Rohan Verma");
+        var anil = employees!.Employees.First(e => e.Name == "Anil Mehta");
 
-        var response = await Client.PutAsJsonAsync($"/api/admin/employees/{rohan.Id}", new { department = "Platform Engineering" });
+        var response = await Client.PutAsJsonAsync($"/api/admin/employees/{anil.Id}", new { department = "Engineering" });
         await PrmApiAssertions.AssertStatusAsync(response, HttpStatusCode.OK);
     }
 
@@ -43,9 +43,9 @@ public class AdminEmployeesIntegrationTests : PrmIntegrationTestBase
     public async Task UpdateEmployee_With_Empty_Department_Returns_400()
     {
         var employees = await Client.GetFromJsonAsync<EmployeeListResponse>("/api/admin/employees");
-        var rohan = employees!.Employees.First(e => e.Name == "Rohan Verma");
+        var anil = employees!.Employees.First(e => e.Name == "Anil Mehta");
 
-        var response = await Client.PutAsJsonAsync($"/api/admin/employees/{rohan.Id}", new { department = "   " });
+        var response = await Client.PutAsJsonAsync($"/api/admin/employees/{anil.Id}", new { department = "   " });
         await PrmApiAssertions.AssertStatusAsync(response, HttpStatusCode.BadRequest);
     }
 
@@ -72,9 +72,9 @@ public class AdminEmployeesIntegrationTests : PrmIntegrationTestBase
     public async Task AddSkill_Succeeds()
     {
         var employees = await Client.GetFromJsonAsync<EmployeeListResponse>("/api/admin/employees");
-        var rohan = employees!.Employees.First(e => e.Name == "Rohan Verma");
+        var anil = employees!.Employees.First(e => e.Name == "Anil Mehta");
 
-        var response = await Client.PostAsJsonAsync($"/api/admin/employees/{rohan.Id}/skills", new
+        var response = await Client.PostAsJsonAsync($"/api/admin/employees/{anil.Id}/skills", new
         {
             skillName = "Terraform",
             category = "DevOps",
@@ -139,10 +139,10 @@ public class AdminEmployeesIntegrationTests : PrmIntegrationTestBase
     [Fact]
     public async Task DeactivateManager_With_Active_Team_Returns_400()
     {
-        var employees = await Client.GetFromJsonAsync<EmployeeListResponse>("/api/admin/employees");
-        var ankit = employees!.Employees.First(e => e.Name == "Ankit Shah");
+        var users = await Client.GetFromJsonAsync<List<UserListItem>>("/api/admin/users");
+        var ankit = users!.First(u => u.Username == "ankit.shah");
 
-        var response = await Client.PostAsync($"/api/admin/employees/{ankit.Id}/deactivate", null);
+        var response = await Client.PostAsync($"/api/admin/users/{ankit.Id}/deactivate", null);
         await PrmApiAssertions.AssertStatusAsync(response, HttpStatusCode.BadRequest);
     }
 

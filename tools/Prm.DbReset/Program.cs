@@ -15,7 +15,7 @@ var host = Host.CreateDefaultBuilder(args)
     {
         var connectionString = context.Configuration.GetConnectionString("Default")
             ?? throw new InvalidOperationException(
-                "Connection string 'Default' is not configured. Set it via User Secrets on src/Prm.Api or tools/Prm.DbReset.");
+                "Connection string 'Default' is not configured. Set it via User Secrets on Server/Prm.Api or tools/Prm.DbReset.");
 
         services.AddDbContext<PrmDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
