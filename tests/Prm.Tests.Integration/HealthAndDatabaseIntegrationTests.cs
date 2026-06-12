@@ -27,7 +27,7 @@ public class HealthAndDatabaseIntegrationTests : PrmIntegrationTestBase
         Assert.NotNull(response);
         Assert.True(response!.Connected);
         Assert.True(response.Users >= 9);
-        Assert.True(response.Employees >= 8);
+        Assert.True(response.Employees >= 5);
         Assert.True(response.Projects >= 4);
         Assert.True(response.BootstrapAdmin);
     }

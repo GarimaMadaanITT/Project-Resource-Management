@@ -9,10 +9,10 @@ public class ManagerScopeGuardTests
     [Fact]
     public void EnsureEmployeeOnTeam_Throws_When_Not_On_Team()
     {
-        var employee = new Employee { Id = 5, ManagerId = 99 };
+        var resourceProfile = new ResourceProfile { Id = 5, ManagerUserId = 99 };
 
         Assert.Throws<ForbiddenException>(() =>
-            ManagerScopeGuard.EnsureEmployeeOnTeam(employee, managerEmployeeId: 1));
+            ManagerScopeGuard.EnsureEmployeeOnTeam(resourceProfile, managerUserId: 1));
     }
 
     [Fact]

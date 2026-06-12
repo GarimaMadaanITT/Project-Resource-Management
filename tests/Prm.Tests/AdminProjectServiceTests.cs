@@ -13,16 +13,14 @@ public class AdminProjectServiceTests
 {
     private readonly Mock<IProjectRepository> _projects = new();
     private readonly Mock<IUserRepository> _users = new();
+    private readonly Mock<IAuditLogService> _auditLog = new();
 
     [Fact]
     public async Task CreateAsync_Throws_When_Manager_Inactive()
     {
-        _users.Setup(u => u.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(new User
-        {
-            Id = 2,
-            Role = UserRole.Manager,
-            IsActive = false
-        });
+        var managerUser = TestDataHelpers.CreateUser(UserRole.Manager, isActive: false);
+        managerUser.Id = 2;
+        _users.Setup(u => u.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(managerUser);
 
         var service = CreateService();
         var request = new CreateProjectRequest(
@@ -34,7 +32,7 @@ public class AdminProjectServiceTests
             2,
             100);
 
-        await Assert.ThrowsAsync<DomainException>(() => service.CreateAsync(request));
+        await Assert.ThrowsAsync<DomainException>(() => service.CreateAsync(request, 99));
     }
 
     [Fact]
@@ -56,9 +54,9 @@ public class AdminProjectServiceTests
         var service = CreateService();
         var request = new AddMilestoneRequest("Overflow", new DateOnly(2026, 6, 1), 20);
 
-        await Assert.ThrowsAsync<DomainException>(() => service.AddMilestoneAsync(1, request));
+        await Assert.ThrowsAsync<DomainException>(() => service.AddMilestoneAsync(1, request, 99));
     }
 
     private AdminProjectService CreateService() =>
-        new(_projects.Object, _users.Object, NullLogger<AdminProjectService>.Instance);
+        new(_projects.Object, _users.Object, _auditLog.Object, NullLogger<AdminProjectService>.Instance);
 }

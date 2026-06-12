@@ -5,7 +5,7 @@ Automated tests live in:
 - `tests/Prm.Tests` — unit tests (validators, guards, mocked services)
 - `tests/Prm.Tests.Integration` — full HTTP API tests (SQLite in-memory + seed)
 
-Run all tests:
+Run all tests (139 total: 63 unit + 76 integration):
 
 ```powershell
 dotnet test
@@ -109,17 +109,73 @@ dotnet test
 
 ---
 
-## 8. Authorization
+## 8. Admin — Audit Logs (Phase 7)
+
+| ID | Endpoint | Scenario | Expected |
+|----|----------|----------|----------|
+| ALG-01 | `GET /api/admin/audit-logs` | Default pagination | 200, `page`/`pageSize`/`totalCount` |
+| ALG-02 | `GET /api/admin/audit-logs?entityName=User&action=Created` | Filter after user create | 200, matching rows |
+| ALG-03 | `GET /api/admin/audit-logs?source=Scheduler` | Scheduler audits | 200 |
+| ALG-04 | `GET /api/admin/audit-logs` | Manager token | 403 |
+
+**Manual check:** Create a user via `POST /api/admin/users`, then query audit logs — expect `EntityName=User`, `Action=Created`, `Source=User`, username in `NewValue`.
+
+---
+
+## 9. Authorization
 
 | ID | Endpoint | Scenario | Expected |
 |----|----------|----------|----------|
 | Z-01 | `GET /api/admin/users` | No token | 401 |
 | Z-02 | `GET /api/admin/users` | Manager token | 403 |
 | Z-03 | `GET /api/admin/projects` | Employee token | 403 |
+| Z-04 | `GET /api/employee/timesheets` | No token | 401 |
+| Z-05 | `GET /api/employee/timesheets` | Manager token | 403 |
+| Z-06 | `GET /api/admin/audit-logs` | Manager token | 403 |
 
 ---
 
-## 9. Unit Tests — Validation Layer
+## 9. Employee — Timesheets, Allocations, Reminders
+
+Login as `dev.patel` / `Employee@1234` (no force password change).
+
+| ID | Endpoint | Scenario | Expected |
+|----|----------|----------|----------|
+| ET-01 | `GET /api/employee/timesheets/activity-tags` | Predefined catalog | 200, includes Bug Fixing, AllowsCustomOther |
+| ET-02 | `POST /api/employee/timesheets` | Valid submit (Monday week) | 201, status Submitted |
+| ET-03 | `POST /api/employee/timesheets` | Duplicate week (ravi, 2026-05-04) | 409 |
+| ET-04 | `POST /api/employee/timesheets` | Hours exceed project cap | 400 |
+| ET-05 | `POST /api/employee/timesheets` | No allocations (anil.mehta) | 400 |
+| ET-06 | `POST /api/employee/timesheets` | Week start not Monday | 400 |
+| ET-07 | `GET /api/employee/timesheets` | History with Missed + Submitted | 200 |
+| ET-08 | `GET /api/employee/timesheets/{weekStart}` | Submitted week detail | 200, entries populated |
+| EA-01 | `GET /api/employee/allocations` | dev.patel active allocation | 200, Beta CRM, status Active |
+| ER-01 | `GET /api/employee/reminders` | Previous week not submitted | 200, HasReminder true |
+| ER-02 | `GET /api/employee/reminders` | After submitting previous week | 200, HasReminder false |
+
+---
+
+## 10. Manager — AI Assistant
+
+Login as `ankit.shah` / `Manager@1234`.
+
+| ID | Endpoint | Scenario | Expected |
+|----|----------|----------|----------|
+| AI-01 | `POST /api/ai/skill-match` | Valid requirement on owned project | 200, matches list |
+| AI-02 | `POST /api/ai/skill-match` | Empty requirement | 400 |
+| AI-03 | `GET /api/ai/risk-summary/{projectId}` | Owned project | 200, summary text |
+| AI-04 | `POST /api/ai/team-builder` | Multi-role NL requirement (banking portal example) | 200, per-role FILLED/GAP |
+| AI-05 | `POST /api/ai/team-builder` | Empty requirement | 400 |
+| AI-06 | `POST /api/ai/team-builder` | Requirement > 1000 chars | 400 |
+| AI-07 | `POST /api/ai/team-builder` | Employee token | 403 |
+
+**Team Builder notes:** Only **fully benched** employees (0% utilisation) may appear as FILLED assignees. Partially allocated employees may appear only in GAP explanations (`ALLOCATED_ELSEWHERE`). No allocation is performed.
+
+**Console walkthrough:** Manager → AI Assistant → Team Builder → press `[E]` for banking portal example.
+
+---
+
+## 11. Unit Tests — Validation Layer
 
 | Area | Tests |
 |------|-------|
@@ -134,16 +190,25 @@ dotnet test
 | AdminUserService | department before save, duplicate username, self-deactivate |
 | AdminEmployeeService | inactive assign manager, manager deactivate block |
 | AdminProjectService | inactive manager, milestone SP overflow |
+| TimesheetValidator | valid entry, duplicate week, not allocated, hour caps, no allocations, non-Monday week |
+| TimesheetBuilder | builds entity with total hours |
+| ActivityTagCatalog | predefined tags, Other + custom text, invalid tag rejection |
+| TeamBuilderRequirementValidator | empty, max length |
+| TeamBuilderResponseValidator | duplicate assignee, invalid gap, assignee not benched |
+| AiTeamBuilderResponseParser | valid JSON, malformed JSON |
+| ManagerAiService | TeamBuilderAsync with stub LLM |
 
 ---
 
 ## Manual Swagger checklist (Neon)
 
-After `dotnet run --project src/Prm.Api`:
+After `dotnet run --project Server/Prm.Api`:
 
 1. Login `admin` / `Admin@1234` → change password → authorize Swagger  
 2. Repeat U-03 through P-08 scenarios against live Neon DB  
-3. Confirm ProblemDetails body includes `detail` and correct status codes (400/403/409)
+3. Login `dev.patel` / `Employee@1234` → authorize → walk ET-01 through ER-01  
+4. Login `ravi.kumar` / `Employee@1234` → POST duplicate week `2026-05-04` → expect 409  
+5. Confirm ProblemDetails body includes `detail` and correct status codes (400/403/409)
 
 Reset Neon seed data:
 

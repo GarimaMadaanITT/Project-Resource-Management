@@ -12,19 +12,25 @@ public class AdminUserProvisioningService
 {
     private readonly IUserRepository _users;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IAuditLogService _auditLog;
     private readonly ILogger<AdminUserProvisioningService> _logger;
 
     public AdminUserProvisioningService(
         IUserRepository users,
         IPasswordHasher passwordHasher,
+        IAuditLogService auditLog,
         ILogger<AdminUserProvisioningService> logger)
     {
         _users = users;
         _passwordHasher = passwordHasher;
+        _auditLog = auditLog;
         _logger = logger;
     }
 
-    public async Task<UserListItemDto> CreateAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
+    public async Task<UserListItemDto> CreateAsync(
+        CreateUserRequest request,
+        int actingUserId,
+        CancellationToken cancellationToken = default)
     {
         var fullName = StringGuard.RequireNonEmpty(request.FullName, "Full name");
         var email = EmailValidator.ValidateAndNormalize(request.Email);
@@ -70,6 +76,32 @@ public class AdminUserProvisioningService
         }
 
         user = await _users.CreateWithEmployeeAsync(user, employee, cancellationToken);
+
+        var adminRole = AuthConstants.RoleName(UserRole.Admin);
+        await _auditLog.AuditAsync(
+            AuditConstants.EntityNames.User,
+            user.Id,
+            AuditConstants.Actions.Created,
+            null,
+            AuditSnapshotBuilder.UserSnapshot(user),
+            actingUserId,
+            adminRole,
+            AuditConstants.Sources.User,
+            cancellationToken);
+
+        if (employee is not null)
+        {
+            await _auditLog.AuditAsync(
+                AuditConstants.EntityNames.Employee,
+                employee.Id,
+                AuditConstants.Actions.Created,
+                null,
+                AuditSnapshotBuilder.EmployeeSnapshot(employee),
+                actingUserId,
+                adminRole,
+                AuditConstants.Sources.User,
+                cancellationToken);
+        }
 
         _logger.LogInformation(
             "User created. UserId={UserId}, Username={Username}, Role={Role}",

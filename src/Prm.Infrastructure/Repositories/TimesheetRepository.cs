@@ -83,4 +83,39 @@ public class TimesheetRepository : ITimesheetRepository
                 && entry.Timesheet.WeekStart == weekStart)
             .ToListAsync(cancellationToken);
     }
+
+    public Task<Timesheet?> GetByEmployeeAndWeekAsync(
+        int employeeId,
+        DateOnly weekStart,
+        CancellationToken cancellationToken = default) =>
+        _context.Timesheets
+            .AsNoTracking()
+            .Include(t => t.Entries).ThenInclude(e => e.Project)
+            .FirstOrDefaultAsync(
+                t => t.EmployeeId == employeeId && t.WeekStart == weekStart,
+                cancellationToken);
+
+    public Task<bool> ExistsForEmployeeWeekAsync(
+        int employeeId,
+        DateOnly weekStart,
+        CancellationToken cancellationToken = default) =>
+        _context.Timesheets.AnyAsync(
+            t => t.EmployeeId == employeeId && t.WeekStart == weekStart,
+            cancellationToken);
+
+    public async Task<IReadOnlyList<Timesheet>> GetByEmployeeIdAsync(
+        int employeeId,
+        CancellationToken cancellationToken = default) =>
+        await _context.Timesheets
+            .AsNoTracking()
+            .Include(t => t.Entries).ThenInclude(e => e.Project)
+            .Where(t => t.EmployeeId == employeeId)
+            .OrderByDescending(t => t.WeekStart)
+            .ToListAsync(cancellationToken);
+
+    public async Task AddAsync(Timesheet timesheet, CancellationToken cancellationToken = default)
+    {
+        _context.Timesheets.Add(timesheet);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
 }

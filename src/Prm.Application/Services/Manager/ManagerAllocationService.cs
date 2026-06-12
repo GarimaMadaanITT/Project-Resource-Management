@@ -14,6 +14,7 @@ public class ManagerAllocationService : IManagerAllocationService
     private readonly IEmployeeRepository _employees;
     private readonly IProjectRepository _projects;
     private readonly IAllocationRepository _allocations;
+    private readonly IAuditLogService _auditLog;
     private readonly ILogger<ManagerAllocationService> _logger;
 
     public ManagerAllocationService(
@@ -21,12 +22,14 @@ public class ManagerAllocationService : IManagerAllocationService
         IEmployeeRepository employees,
         IProjectRepository projects,
         IAllocationRepository allocations,
+        IAuditLogService auditLog,
         ILogger<ManagerAllocationService> logger)
     {
         _context = context;
         _employees = employees;
         _projects = projects;
         _allocations = allocations;
+        _auditLog = auditLog;
         _logger = logger;
     }
 
@@ -72,6 +75,17 @@ public class ManagerAllocationService : IManagerAllocationService
         await _allocations.AddAsync(allocation, cancellationToken);
         await UpdateEmployeeStatusAsync(employee.Id, cancellationToken);
 
+        await _auditLog.AuditAsync(
+            AuditConstants.EntityNames.Allocation,
+            allocation.Id,
+            AuditConstants.Actions.Created,
+            null,
+            AuditSnapshotBuilder.AllocationSnapshot(allocation),
+            managerUserId,
+            AuthConstants.RoleName(UserRole.Manager),
+            AuditConstants.Sources.User,
+            cancellationToken);
+
         _logger.LogInformation(
             "Allocation created. AllocationId={AllocationId}, ProjectId={ProjectId}, EmployeeId={EmployeeId}, Utilisation={Utilisation}%, ManagerUserId={ManagerUserId}",
             allocation.Id,
@@ -106,8 +120,21 @@ public class ManagerAllocationService : IManagerAllocationService
         var endDate = request.EndDate ?? ActiveDateHelper.TodayUtc;
         AllocationValidator.ValidateEndDate(allocation, endDate);
 
+        var oldSnapshot = AuditSnapshotBuilder.AllocationSnapshot(allocation);
+
         allocation.ToDate = endDate;
         await _allocations.UpdateAsync(allocation, cancellationToken);
+
+        await _auditLog.AuditAsync(
+            AuditConstants.EntityNames.Allocation,
+            allocation.Id,
+            AuditConstants.Actions.Ended,
+            oldSnapshot,
+            AuditSnapshotBuilder.AllocationSnapshot(allocation),
+            managerUserId,
+            AuthConstants.RoleName(UserRole.Manager),
+            AuditConstants.Sources.User,
+            cancellationToken);
 
         var employee = EntityGuard.EnsureFound(
             await _employees.GetByIdAsync(allocation.EmployeeId, cancellationToken),

@@ -1,3 +1,4 @@
+using Prm.Application.DTOs.Admin;
 using Prm.Domain.Entities;
 using Prm.Domain.Enums;
 
@@ -35,6 +36,7 @@ public interface IEmployeeRepository
         int managerEmployeeId,
         int employeeId,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Employee>> GetAllActiveWithAllocationsAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IProjectRepository
@@ -50,6 +52,7 @@ public interface IProjectRepository
     Task UpdateMilestoneAsync(Milestone milestone, CancellationToken cancellationToken = default);
     Task<bool> HasActiveProjectsForManagerAsync(int managerUserId, CancellationToken cancellationToken = default);
     Task<int> GetMilestoneStoryPointsSumAsync(int projectId, int? excludeMilestoneId = null, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Project>> GetAllActiveWithDetailsAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IAllocationRepository
@@ -76,6 +79,18 @@ public interface ITimesheetRepository
         IReadOnlyList<int> employeeIds,
         DateOnly weekStart,
         CancellationToken cancellationToken = default);
+    Task<Timesheet?> GetByEmployeeAndWeekAsync(
+        int employeeId,
+        DateOnly weekStart,
+        CancellationToken cancellationToken = default);
+    Task<bool> ExistsForEmployeeWeekAsync(
+        int employeeId,
+        DateOnly weekStart,
+        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Timesheet>> GetByEmployeeIdAsync(
+        int employeeId,
+        CancellationToken cancellationToken = default);
+    Task AddAsync(Timesheet timesheet, CancellationToken cancellationToken = default);
 }
 
 public interface ISystemSettingsRepository
@@ -92,4 +107,12 @@ public interface ISkillRepository
     Task AddEmployeeSkillAsync(EmployeeSkill employeeSkill, CancellationToken cancellationToken = default);
     Task RemoveEmployeeSkillAsync(EmployeeSkill employeeSkill, CancellationToken cancellationToken = default);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IAuditLogRepository
+{
+    Task AddAsync(AuditLog log, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<AuditLog> Items, int TotalCount)> QueryAsync(
+        AuditLogQuery query,
+        CancellationToken cancellationToken = default);
 }

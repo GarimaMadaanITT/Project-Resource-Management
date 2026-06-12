@@ -84,6 +84,9 @@ public class PrmWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
     public async Task<string> LoginAsManagerAsync(HttpClient client) =>
         await LoginAsync(client, "ankit.shah", "Manager@1234");
 
+    public async Task<string> LoginAsEmployeeAsync(HttpClient client) =>
+        await LoginAsync(client, "dev.patel", "Employee@1234");
+
     public async Task<string> LoginAsync(HttpClient client, string username, string password)
     {
         var response = await client.PostAsJsonAsync("/api/auth/login", new { username, password });
@@ -104,7 +107,7 @@ public class PrmWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
         var token = login.GetProperty("token").GetString()!;
         Authorize(client, token);
 
-        if (login.GetProperty("forcePasswordChange").GetBoolean())
+        if (login.GetProperty("isTemporaryPassword").GetBoolean())
         {
             var changeResponse = await client.PostAsJsonAsync("/api/auth/change-password", new
             {

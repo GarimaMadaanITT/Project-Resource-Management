@@ -13,37 +13,34 @@ namespace Prm.Tests;
 
 public class AdminEmployeeServiceTests
 {
-    private readonly Mock<IEmployeeRepository> _employees = new();
+    private readonly Mock<IResourceProfileRepository> _resourceProfiles = new();
     private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<IProjectRepository> _projects = new();
     private readonly Mock<ISkillRepository> _skills = new();
+    private readonly Mock<IAuditLogService> _auditLog = new();
 
     [Fact]
     public async Task AssignManagerAsync_Throws_When_Employee_Inactive()
     {
-        var employee = new Employee
-        {
-            Id = 1,
-            IsActive = false,
-            User = new User { FullName = "Inactive" }
-        };
+        var resourceProfile = TestDataHelpers.CreateResourceProfile(1, isActive: false, fullName: "Inactive");
 
-        _employees.Setup(repository => repository.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(employee);
+        _resourceProfiles.Setup(repository => repository.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(resourceProfile);
 
         var service = CreateService();
         await Assert.ThrowsAsync<DomainException>(() =>
-            service.AssignManagerAsync(1, new AssignManagerRequest(2)));
+            service.AssignManagerAsync(1, new AssignManagerRequest(2), 99));
     }
 
     [Fact]
     public async Task DeactivateAsync_Blocks_Manager_With_Active_Team()
     {
-        var managerEmployee = new Employee { Id = 10, UserId = 2, IsActive = true };
-        var managerUser = new User { Id = 2, Role = UserRole.Manager, IsActive = true, FullName = "Manager" };
+        var managerUser = TestDataHelpers.CreateUser(UserRole.Manager, fullName: "Manager");
+        managerUser.Id = 2;
+        var managerResourceProfile = new ResourceProfile { Id = 10, UserId = 2, User = managerUser };
 
-        _employees.Setup(repository => repository.GetByIdAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync(managerEmployee);
+        _resourceProfiles.Setup(repository => repository.GetByIdAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync(managerResourceProfile);
         _users.Setup(repository => repository.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(managerUser);
-        _employees.Setup(repository => repository.HasActiveTeamMembersAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _resourceProfiles.Setup(repository => repository.HasActiveTeamMembersAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _projects.Setup(repository => repository.HasActiveProjectsForManagerAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
         var service = CreateService();
@@ -53,20 +50,22 @@ public class AdminEmployeeServiceTests
     private AdminEmployeeService CreateService()
     {
         var accountDeactivation = new AccountDeactivationService(
-            _employees.Object,
+            _resourceProfiles.Object,
             _users.Object,
             _projects.Object,
+            _auditLog.Object,
             NullLogger<AccountDeactivationService>.Instance);
 
         return new AdminEmployeeService(
-            _employees.Object,
+            _resourceProfiles.Object,
             _users.Object,
             accountDeactivation,
-            new AdminEmployeeQueryService(_employees.Object),
+            new AdminEmployeeQueryService(_resourceProfiles.Object),
             new AdminEmployeeCommandService(
-                _employees.Object,
+                _resourceProfiles.Object,
                 _users.Object,
+                _auditLog.Object,
                 NullLogger<AdminEmployeeCommandService>.Instance),
-            new AdminEmployeeSkillService(_employees.Object, _skills.Object));
+            new AdminEmployeeSkillService(_resourceProfiles.Object, _skills.Object, _auditLog.Object));
     }
 }

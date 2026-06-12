@@ -1,9 +1,12 @@
 <Solution>
-  <Folder Name="/src/">
-    <Project Path="src/Prm.Api/Prm.Api.csproj" />
-    <Project Path="src/Prm.Application/Prm.Application.csproj" />
-    <Project Path="src/Prm.Domain/Prm.Domain.csproj" />
-    <Project Path="src/Prm.Infrastructure/Prm.Infrastructure.csproj" />
+  <Folder Name="/Client/">
+    <Project Path="Client/Prm.Console/Prm.Console.csproj" />
+  </Folder>
+  <Folder Name="/Server/">
+    <Project Path="Server/Prm.Api/Prm.Api.csproj" />
+    <Project Path="Server/Prm.Application/Prm.Application.csproj" />
+    <Project Path="Server/Prm.Domain/Prm.Domain.csproj" />
+    <Project Path="Server/Prm.Infrastructure/Prm.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Prm.Tests.Integration/Prm.Tests.Integration.csproj" />
