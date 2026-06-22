@@ -29,9 +29,9 @@ public class AdminSettingsService : IAdminSettingsService
             settings.LlmProvider = SettingsValidator.ParseProvider(request.LlmProvider);
         }
 
-        if (!string.IsNullOrWhiteSpace(request.LlmApiKey))
+        if (request.LlmApiKey is not null)
         {
-            settings.LlmApiKey = request.LlmApiKey.Trim();
+            settings.LlmApiKey = SettingsValidator.NormalizeApiKey(request.LlmApiKey);
         }
 
         if (request.SchedulerIntervalHours.HasValue)

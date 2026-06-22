@@ -8,6 +8,7 @@ using Prm.Application.Services.Manager;
 using Prm.Application.Services.Employees;
 using Prm.Application.Services.Shared;
 using Prm.Application.Services.Scheduler;
+using Prm.Application.Services.Notifications;
 
 namespace Prm.Application;
 
@@ -49,8 +50,14 @@ public static class DependencyInjection
 
         services.AddScoped<IUtilisationRecomputeService, UtilisationRecomputeService>();
         services.AddScoped<IProjectHealthRecomputeService, ProjectHealthRecomputeService>();
-        services.AddScoped<ITimesheetMissedDetectionService, TimesheetMissedDetectionService>();
+        services.AddScoped<ITimesheetMissedDetectionService, TimesheetComplianceNotificationService>();
         services.AddScoped<ISchedulerOrchestrator, SchedulerOrchestrator>();
+
+        services.AddScoped<NotificationDispatchService>();
+        services.AddScoped<IProjectRiskContentBuilder, ProjectRiskContentBuilder>();
+        services.AddScoped<AtRiskSkillSuggestionService>();
+        services.AddScoped<IProjectAtRiskNotificationService, ProjectAtRiskNotificationService>();
+        services.AddScoped<IManagerTimesheetComplianceService, ManagerTimesheetComplianceService>();
 
         return services;
     }

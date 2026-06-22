@@ -18,8 +18,8 @@ public class AllocationValidatorTests
             {
                 ResourceProfileId = 1,
                 UtilisationPercent = 50,
-                FromDate = new DateOnly(2026, 1, 1),
-                ToDate = new DateOnly(2026, 3, 31)
+                FromDate = Future(10),
+                ToDate = Future(100)
             }
         };
 
@@ -27,8 +27,8 @@ public class AllocationValidatorTests
             project,
             resourceProfile,
             50,
-            new DateOnly(2026, 4, 1),
-            new DateOnly(2026, 6, 30),
+            Future(101),
+            Future(190),
             existing);
     }
 
@@ -43,8 +43,8 @@ public class AllocationValidatorTests
             {
                 ResourceProfileId = 1,
                 UtilisationPercent = 50,
-                FromDate = new DateOnly(2026, 3, 1),
-                ToDate = new DateOnly(2026, 6, 30)
+                FromDate = Future(10),
+                ToDate = Future(120)
             }
         };
 
@@ -52,8 +52,8 @@ public class AllocationValidatorTests
             project,
             resourceProfile,
             50,
-            new DateOnly(2026, 4, 1),
-            new DateOnly(2026, 7, 31),
+            Future(40),
+            Future(150),
             existing);
     }
 
@@ -68,8 +68,8 @@ public class AllocationValidatorTests
             {
                 ResourceProfileId = 1,
                 UtilisationPercent = 60,
-                FromDate = new DateOnly(2026, 3, 1),
-                ToDate = new DateOnly(2026, 6, 30)
+                FromDate = Future(10),
+                ToDate = Future(120)
             }
         };
 
@@ -78,8 +78,8 @@ public class AllocationValidatorTests
                 project,
                 resourceProfile,
                 50,
-                new DateOnly(2026, 4, 1),
-                new DateOnly(2026, 7, 31),
+                Future(40),
+                Future(150),
                 existing));
     }
 
@@ -94,8 +94,8 @@ public class AllocationValidatorTests
                 project,
                 resourceProfile,
                 50,
-                new DateOnly(2026, 4, 1),
-                new DateOnly(2026, 7, 31),
+                Future(10),
+                Future(120),
                 Array.Empty<Allocation>()));
     }
 
@@ -110,10 +110,28 @@ public class AllocationValidatorTests
                 project,
                 resourceProfile,
                 50,
-                new DateOnly(2026, 4, 1),
-                new DateOnly(2026, 7, 31),
+                Future(10),
+                Future(120),
                 Array.Empty<Allocation>()));
     }
+
+    [Fact]
+    public void ValidateCreateRequest_Throws_When_From_Date_In_Past()
+    {
+        var project = CreateProject(ProjectStatus.Active);
+        var resourceProfile = CreateResourceProfile();
+
+        Assert.Throws<DomainException>(() =>
+            AllocationValidator.ValidateCreateRequest(
+                project,
+                resourceProfile,
+                50,
+                ActiveDateHelper.TodayUtc.AddDays(-1),
+                Future(30),
+                Array.Empty<Allocation>()));
+    }
+
+    private static DateOnly Future(int daysFromToday) => ActiveDateHelper.TodayUtc.AddDays(daysFromToday);
 
     private static Project CreateProject(ProjectStatus status) =>
         new()

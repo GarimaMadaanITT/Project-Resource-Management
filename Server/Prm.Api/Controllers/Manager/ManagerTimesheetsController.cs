@@ -12,11 +12,16 @@ namespace Prm.Api.Controllers.Manager;
 public class ManagerTimesheetsController : AuthenticatedControllerBase
 {
     private readonly IManagerTeamTimesheetService _service;
+    private readonly IManagerTimesheetComplianceService _complianceService;
 
-    public ManagerTimesheetsController(IManagerTeamTimesheetService service, ICurrentUserAccessor currentUserAccessor)
+    public ManagerTimesheetsController(
+        IManagerTeamTimesheetService service,
+        IManagerTimesheetComplianceService complianceService,
+        ICurrentUserAccessor currentUserAccessor)
         : base(currentUserAccessor)
     {
         _service = service;
+        _complianceService = complianceService;
     }
 
     [HttpGet]
@@ -31,4 +36,10 @@ public class ManagerTimesheetsController : AuthenticatedControllerBase
         [FromQuery] DateOnly? weekStart,
         CancellationToken cancellationToken) =>
         Ok(await _service.GetEmployeeTimesheetDetailAsync(GetUserId(), employeeId, weekStart, cancellationToken));
+
+    [HttpPost("employees/{employeeId:int}/restore-timesheet-access")]
+    public async Task<ActionResult<RestoreTimesheetAccessResponse>> RestoreTimesheetAccess(
+        int employeeId,
+        CancellationToken cancellationToken) =>
+        Ok(await _complianceService.RestoreTimesheetAccessAsync(GetUserId(), employeeId, cancellationToken));
 }

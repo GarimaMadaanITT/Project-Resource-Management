@@ -4,7 +4,8 @@ public record TeamTimesheetRowDto(
     string EmployeeName,
     string ProjectName,
     decimal Hours,
-    string Status);
+    string Status,
+    bool TimesheetSubmissionFrozen);
 
 public record TeamTimesheetsResponse(
     DateOnly WeekStart,
@@ -20,4 +21,5 @@ public record ManagerEmployeeTimesheetDetailResponse(
     string EmployeeName,
     DateOnly WeekStart,
     string Status,
+    bool TimesheetSubmissionFrozen,
     IReadOnlyList<ManagerTimesheetEntryDetailDto> Entries);

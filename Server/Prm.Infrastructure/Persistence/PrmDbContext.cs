@@ -50,15 +50,15 @@ public class PrmDbContext : DbContext
 
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
 
-    public DbSet<SystemConfiguration> SystemConfigurations => Set<SystemConfiguration>();
-
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-
-    public DbSet<ActivityTag> ActivityTags => Set<ActivityTag>();
 
     public DbSet<AiRequestLog> AiRequestLogs => Set<AiRequestLog>();
 
     public DbSet<SchedulerJobLog> SchedulerJobLogs => Set<SchedulerJobLog>();
+
+    public DbSet<TimesheetCompliance> TimesheetCompliances => Set<TimesheetCompliance>();
+
+    public DbSet<NotificationLog> NotificationLogs => Set<NotificationLog>();
 
 
 

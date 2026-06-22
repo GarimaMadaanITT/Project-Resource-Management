@@ -61,7 +61,7 @@ public static class AiTeamBuilderPromptBuilder
     }
 
     private static string FormatCandidate(AiTeamBuilderCandidateMapper.TeamBuilderCandidateSnapshot candidate) =>
-        $"- ResourceProfileId {candidate.EmployeeId}, UserId {candidate.UserId}: {candidate.FullName}; designation: {candidate.Designation ?? "N/A"}; " +
+        $"- ResourceProfileId {candidate.EmployeeId}, UserId {candidate.UserId}: {candidate.FullName}; department: {candidate.Department ?? "N/A"}; designation: {candidate.Designation ?? "N/A"}; " +
         $"util {candidate.UtilisationPercent}%; skills: {FormatSkills(candidate.Skills)}";
 
     private static string FormatCandidateWithAllocations(
@@ -72,7 +72,7 @@ public static class AiTeamBuilderPromptBuilder
             : string.Join("; ", candidate.ActiveAllocations.Select(
                 allocation => $"{allocation.ProjectName} until {allocation.ToDate:yyyy-MM-dd}"));
 
-        return $"- ResourceProfileId {candidate.EmployeeId}, UserId {candidate.UserId}: {candidate.FullName}; designation: {candidate.Designation ?? "N/A"}; " +
+        return $"- ResourceProfileId {candidate.EmployeeId}, UserId {candidate.UserId}: {candidate.FullName}; department: {candidate.Department ?? "N/A"}; designation: {candidate.Designation ?? "N/A"}; " +
                $"util {candidate.UtilisationPercent}%; skills: {FormatSkills(candidate.Skills)}; " +
                $"active allocations: {allocationText}";
     }

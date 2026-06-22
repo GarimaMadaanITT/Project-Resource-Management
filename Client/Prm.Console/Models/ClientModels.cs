@@ -154,7 +154,8 @@ public record TeamTimesheetRowModel(
     string EmployeeName,
     string ProjectName,
     decimal Hours,
-    string Status);
+    string Status,
+    bool TimesheetSubmissionFrozen);
 
 public record TeamTimesheetsResponseModel(
     DateOnly WeekStart,
@@ -170,7 +171,14 @@ public record ManagerEmployeeTimesheetDetailModel(
     string EmployeeName,
     DateOnly WeekStart,
     string Status,
+    bool TimesheetSubmissionFrozen,
     IReadOnlyList<ManagerTimesheetEntryDetailModel> Entries);
+
+public record RestoreTimesheetAccessResponseModel(
+    int EmployeeId,
+    string EmployeeName,
+    bool TimesheetSubmissionFrozen,
+    string Message);
 
 public record ActivityTagsResponseModel(
     IReadOnlyList<string> PredefinedTags,
@@ -222,7 +230,9 @@ public record SkillMatchResultModel(
     string EmployeeName,
     int UtilisationPercent,
     int AvailabilityPercent,
-    string Reason);
+    string Reason,
+    int MatchScore = 0,
+    IReadOnlyList<string>? MatchedSkills = null);
 
 public record SkillMatchResponseModel(
     string ProjectName,

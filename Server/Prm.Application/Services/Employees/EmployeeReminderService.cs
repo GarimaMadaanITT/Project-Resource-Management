@@ -43,6 +43,14 @@ public class EmployeeReminderService : IEmployeeReminderService
             return new EmployeeReminderResponse(false, null, null);
         }
 
+        if (resourceProfile.TimesheetSubmissionFrozen)
+        {
+            return new EmployeeReminderResponse(
+                true,
+                targetWeekStart,
+                "Your timesheet submission access is frozen. Contact your manager to restore access.");
+        }
+
         var exists = await _timesheets.ExistsForResourceProfileWeekAsync(
             employeeContext.ResourceProfileId,
             targetWeekStart,

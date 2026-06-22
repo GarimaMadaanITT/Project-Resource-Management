@@ -83,4 +83,7 @@ public static class AuditSnapshotBuilder
 
     public static object MissedTimesheetSnapshot(DateOnly weekStart, int resourceProfileId) =>
         new { resourceProfileId, weekStart };
+
+    public static object TimesheetFreezeSnapshot(int resourceProfileId, DateOnly weekStart) =>
+        new { resourceProfileId, weekStart, frozen = true };
 }

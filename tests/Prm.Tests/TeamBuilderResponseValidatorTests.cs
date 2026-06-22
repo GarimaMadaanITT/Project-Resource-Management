@@ -14,6 +14,7 @@ public class TeamBuilderResponseValidatorTests
             101,
             "Anil Mehta",
             "DevOpsEngineer",
+            "DevOps",
             0,
             100,
             [new AiTeamBuilderCandidateMapper.SkillSnapshot("Docker", "ADVANCED")],

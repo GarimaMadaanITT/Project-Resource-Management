@@ -33,7 +33,7 @@ public class AuditSnapshotBuilderTests
     public void ResourceProfileSnapshot_Includes_Status_And_Manager()
     {
         var user = TestDataHelpers.CreateUser(UserRole.Employee);
-        user.Department = Department.Engineering;
+        user.Department = "Engineering";
 
         var resourceProfile = new ResourceProfile
         {

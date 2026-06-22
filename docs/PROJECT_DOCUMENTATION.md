@@ -420,7 +420,7 @@ Previous completed week = `GetCurrentWeekStartUtc().AddDays(-7)`.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| POST | `/api/ai/skill-match` | Natural-language team resource search |
+| POST | `/api/ai/skill-match` | Natural-language org-wide resource search |
 | GET | `/api/ai/risk-summary/{projectId}` | AI project risk paragraph |
 
 **Skill match body example:**

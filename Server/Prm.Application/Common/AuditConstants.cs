@@ -29,6 +29,9 @@ public static class AuditConstants
         public const string Ended = "Ended";
         public const string Submitted = "Submitted";
         public const string MissedTimesheetDetected = "MissedTimesheetDetected";
+        public const string TimesheetAccessFrozen = "TimesheetAccessFrozen";
+        public const string TimesheetAccessRestored = "TimesheetAccessRestored";
+        public const string AtRiskNotificationSent = "AtRiskNotificationSent";
     }
 
     public static class Sources

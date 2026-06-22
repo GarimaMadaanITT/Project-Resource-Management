@@ -68,9 +68,7 @@ public class AdminEmployeeCommandService
 
     {
 
-        var department = EnumGuard.Parse<Department>(
-            StringGuard.RequireNonEmpty(request.Department, "Department"),
-            "Department");
+        var department = OrgLabelValidator.ValidateRequired(request.Department, "Department");
 
         var resourceProfile = EntityGuard.EnsureFound(
 
@@ -92,8 +90,8 @@ public class AdminEmployeeCommandService
 
         if (!string.IsNullOrWhiteSpace(request.Designation))
         {
-            resourceProfile.User.Designation = EnumGuard.Parse<Designation>(
-                request.Designation.Trim(),
+            resourceProfile.User.Designation = OrgLabelValidator.ValidateRequired(
+                request.Designation,
                 "Designation");
         }
 

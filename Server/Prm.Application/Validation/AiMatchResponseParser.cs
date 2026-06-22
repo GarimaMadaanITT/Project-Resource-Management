@@ -51,6 +51,8 @@ public static class AiMatchResponseParser
     {
         var lines = candidates.Select(candidate =>
             $"- ID {candidate.ResourceProfile.Id}: {candidate.ResourceProfile.User.FullName}; " +
+            $"dept {candidate.ResourceProfile.User.Department}; " +
+            $"designation {candidate.ResourceProfile.User.Designation}; " +
             $"util {candidate.UtilisationPercent}%; free {candidate.FreeHoursPerWeek} hrs/week; " +
             $"skills: {string.Join(", ", candidate.ProfileSkills)}; " +
             $"recent tags: {string.Join(", ", candidate.RecentActivityTags)}");
@@ -58,7 +60,7 @@ public static class AiMatchResponseParser
         return
             $"Project: {projectName}\n" +
             $"Requirement: {requirement}\n\n" +
-            "Qualified team candidates (pre-filtered by capacity):\n" +
+            "Qualified organization candidates (pre-filtered by capacity):\n" +
             string.Join("\n", lines);
     }
 

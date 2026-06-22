@@ -1,6 +1,7 @@
 using Prm.Application.Common;
 using Prm.Application.DTOs.Manager;
 using Prm.Application.Interfaces;
+using Prm.Application.Services.Notifications;
 using Prm.Application.Validation;
 using Prm.Domain.Enums;
 
@@ -11,15 +12,18 @@ public class ManagerTeamTimesheetService : IManagerTeamTimesheetService
     private readonly IManagerContextService _context;
     private readonly IResourceProfileRepository _resourceProfiles;
     private readonly ITimesheetRepository _timesheets;
+    private readonly ITimesheetComplianceRepository _complianceRepository;
 
     public ManagerTeamTimesheetService(
         IManagerContextService context,
         IResourceProfileRepository resourceProfiles,
-        ITimesheetRepository timesheets)
+        ITimesheetRepository timesheets,
+        ITimesheetComplianceRepository complianceRepository)
     {
         _context = context;
         _resourceProfiles = resourceProfiles;
         _timesheets = timesheets;
+        _complianceRepository = complianceRepository;
     }
 
     public async Task<TeamTimesheetsResponse> GetTeamTimesheetsAsync(
@@ -42,6 +46,12 @@ public class ManagerTeamTimesheetService : IManagerTeamTimesheetService
             cancellationToken);
 
         var timesheetByProfile = timesheets.ToDictionary(timesheet => timesheet.ResourceProfileId);
+        var today = ActiveDateHelper.TodayUtc;
+        var compliances = await _complianceRepository.GetByResourceProfileIdsAndWeeksAsync(
+            teamResourceProfileIds,
+            [resolvedWeekStart],
+            cancellationToken);
+        var complianceByProfile = compliances.ToDictionary(compliance => compliance.ResourceProfileId);
         var rows = new List<TeamTimesheetRowDto>();
 
         foreach (var resourceProfile in team)
@@ -57,20 +67,24 @@ public class ManagerTeamTimesheetService : IManagerTeamTimesheetService
 
             timesheetByProfile.TryGetValue(resourceProfile.Id, out var timesheet);
             var hasSubmittedTimesheet = timesheet is not null;
+            complianceByProfile.TryGetValue(resourceProfile.Id, out var compliance);
+            var status = TimesheetDisplayStatusHelper.Resolve(
+                hasSubmittedTimesheet,
+                compliance?.Status,
+                resolvedWeekStart,
+                today);
 
             foreach (var allocation in weekAllocations)
             {
                 var entry = timesheet?.Entries.FirstOrDefault(e => e.ProjectId == allocation.ProjectId);
                 var hours = entry?.Hours ?? 0;
-                var status = hasSubmittedTimesheet
-                    ? TimesheetStatus.Submitted.ToString()
-                    : TimesheetStatus.Missed.ToString();
 
                 rows.Add(new TeamTimesheetRowDto(
                     resourceProfile.User.FullName,
                     allocation.Project.Name,
                     hours,
-                    status));
+                    status,
+                    resourceProfile.TimesheetSubmissionFrozen));
             }
         }
 
@@ -98,6 +112,10 @@ public class ManagerTeamTimesheetService : IManagerTeamTimesheetService
 
         var timesheet = timesheets.FirstOrDefault();
         var hasSubmittedTimesheet = timesheet is not null;
+        var compliance = await _complianceRepository.GetByResourceProfileAndWeekAsync(
+            resourceProfile.Id,
+            resolvedWeekStart,
+            cancellationToken);
         var weekAllocations = resourceProfile.Allocations
             .Where(allocation => ActiveDateHelper.IsAllocationActiveDuringWeek(allocation, resolvedWeekStart))
             .ToList();
@@ -113,15 +131,18 @@ public class ManagerTeamTimesheetService : IManagerTeamTimesheetService
             })
             .ToList();
 
-        var status = hasSubmittedTimesheet
-            ? TimesheetStatus.Submitted.ToString()
-            : TimesheetStatus.Missed.ToString();
+        var status = TimesheetDisplayStatusHelper.Resolve(
+            hasSubmittedTimesheet,
+            compliance?.Status,
+            resolvedWeekStart,
+            ActiveDateHelper.TodayUtc);
 
         return new ManagerEmployeeTimesheetDetailResponse(
             resourceProfile.Id,
             resourceProfile.User.FullName,
             resolvedWeekStart,
             status,
+            resourceProfile.TimesheetSubmissionFrozen,
             entries);
     }
 

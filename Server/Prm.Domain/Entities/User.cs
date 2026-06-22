@@ -1,5 +1,4 @@
 using Prm.Domain.Common;
-using Prm.Domain.Enums;
 
 namespace Prm.Domain.Entities;
 
@@ -9,8 +8,8 @@ public class User : AuditableEntity
     public string Email { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
-    public Department? Department { get; set; }
-    public Designation? Designation { get; set; }
+    public string? Department { get; set; }
+    public string? Designation { get; set; }
     public bool IsActive { get; set; } = true;
     public bool IsTemporaryPassword { get; set; }
     public DateTime? LastLoginAt { get; set; }

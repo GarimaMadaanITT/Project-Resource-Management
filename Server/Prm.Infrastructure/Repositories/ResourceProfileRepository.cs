@@ -28,10 +28,10 @@ public class ResourceProfileRepository : IResourceProfileRepository
 
         if (!string.IsNullOrWhiteSpace(department))
         {
-            if (Enum.TryParse<Department>(department, true, out var dept))
-            {
-                query = query.Where(r => r.User.Department == dept);
-            }
+            var normalizedDepartment = department.Trim();
+            query = query.Where(r =>
+                r.User.Department != null
+                && EF.Functions.ILike(r.User.Department, normalizedDepartment));
         }
 
         if (status.HasValue)
@@ -130,6 +130,7 @@ public class ResourceProfileRepository : IResourceProfileRepository
         await _context.ResourceProfiles
             .Include(r => r.Allocations)
             .Include(r => r.User)
+            .Include(r => r.Manager)
             .Where(r => r.User.IsActive)
             .OrderBy(r => r.Id)
             .ToListAsync(cancellationToken);

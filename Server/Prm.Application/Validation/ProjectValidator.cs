@@ -15,6 +15,9 @@ public static class ProjectValidator
 
     public static void ValidateDates(DateOnly startDate, DateOnly endDate)
     {
+        DateGuard.EnsureNotInPast(startDate, "Start date");
+        DateGuard.EnsureNotInPast(endDate, "End date");
+
         if (startDate >= endDate)
         {
             throw new DomainException("Start date must be before end date.");

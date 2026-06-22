@@ -8,6 +8,8 @@ public class ResourceProfile : AuditableEntity
     public int UserId { get; set; }
     public int? ManagerUserId { get; set; }
     public ResourceStatus ResourceStatus { get; set; } = ResourceStatus.Bench;
+    public bool TimesheetSubmissionFrozen { get; set; }
+    public DateTime? TimesheetFrozenAt { get; set; }
 
     public User User { get; set; } = null!;
     public User? Manager { get; set; }

@@ -47,15 +47,11 @@ public class AdminUserProvisioningService
 
         if (role == UserRole.Manager)
         {
-            StringGuard.RequireNonEmpty(request.Department, "Department");
+            OrgLabelValidator.ValidateRequired(request.Department, "Department");
         }
 
-        Department? department = string.IsNullOrWhiteSpace(request.Department)
-            ? null
-            : EnumGuard.Parse<Department>(request.Department.Trim(), "Department");
-        Designation? designation = string.IsNullOrWhiteSpace(request.Designation)
-            ? null
-            : EnumGuard.Parse<Designation>(request.Designation.Trim(), "Designation");
+        var department = OrgLabelValidator.ValidateOptional(request.Department, "Department");
+        var designation = OrgLabelValidator.ValidateOptional(request.Designation, "Designation");
 
         UserAvailabilityGuard.EnsureUsernameAvailable(
             await _users.ExistsUsernameAsync(username, cancellationToken: cancellationToken));

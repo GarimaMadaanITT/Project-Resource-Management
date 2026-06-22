@@ -4,17 +4,24 @@ using Prm.Application.Common;
 using Prm.Domain.Entities;
 using Prm.Domain.Enums;
 
+using Prm.Application.DTOs.Admin;
+
 namespace Prm.Infrastructure.Persistence.Seeding;
 
 public class DataSeeder
 {
     private readonly PrmDbContext _context;
     private readonly ILogger<DataSeeder> _logger;
+    private readonly NotificationTestDataSeeder _notificationTestDataSeeder;
 
-    public DataSeeder(PrmDbContext context, ILogger<DataSeeder> logger)
+    public DataSeeder(
+        PrmDbContext context,
+        ILogger<DataSeeder> logger,
+        NotificationTestDataSeeder notificationTestDataSeeder)
     {
         _context = context;
         _logger = logger;
+        _notificationTestDataSeeder = notificationTestDataSeeder;
     }
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
@@ -36,21 +43,21 @@ public class DataSeeder
             "admin",
             "admin@techserve.com",
             "System Admin",
-            Department.IT,
-            Designation.SystemAdministrator,
+            "IT",
+            "SystemAdministrator",
             "Admin@1234",
             isTemporaryPassword: true);
         _context.Users.Add(admin);
 
-        var ankitUser = CreateUser("ankit.shah", "ankit.shah@techserve.com", "Ankit Shah", Department.Delivery, Designation.ProjectManager, "Manager@1234");
-        var nehaManagerUser = CreateUser("neha.joshi", "neha.joshi@techserve.com", "Neha Joshi", Department.Delivery, Designation.SeniorProjectManager, "Manager@1234");
-        var rohanUser = CreateUser("rohan.verma", "rohan.verma@techserve.com", "Rohan Verma", Department.Delivery, Designation.ProjectManager, "Manager@1234");
+        var ankitUser = CreateUser("ankit.shah", "ankit.shah@techserve.com", "Ankit Shah", "Delivery", "ProjectManager", "Manager@1234");
+        var nehaManagerUser = CreateUser("neha.joshi", "neha.joshi@techserve.com", "Neha Joshi", "Delivery", "SeniorProjectManager", "Manager@1234");
+        var rohanUser = CreateUser("rohan.verma", "rohan.verma@techserve.com", "Rohan Verma", "Delivery", "ProjectManager", "Manager@1234");
 
-        var raviUser = CreateUser("ravi.kumar", "ravi.kumar@techserve.com", "Ravi Kumar", Department.Backend, Designation.SoftwareEngineer, "Employee@1234");
-        var priyaUser = CreateUser("priya.sharma", "priya.sharma@techserve.com", "Priya Sharma", Department.Frontend, Designation.SoftwareEngineer, "Employee@1234", isActive: false);
-        var anilUser = CreateUser("anil.mehta", "anil.mehta@techserve.com", "Anil Mehta", Department.DevOps, Designation.DevOpsEngineer, "Employee@1234");
-        var saraUser = CreateUser("sara.khan", "sara.khan@techserve.com", "Sara Khan", Department.QA, Designation.QAEngineer, "Employee@1234");
-        var devUser = CreateUser("dev.patel", "dev.patel@techserve.com", "Dev Patel", Department.Backend, Designation.SeniorSoftwareEngineer, "Employee@1234");
+        var raviUser = CreateUser("ravi.kumar", "ravi.kumar@techserve.com", "Ravi Kumar", "Backend", "SoftwareEngineer", "Employee@1234");
+        var priyaUser = CreateUser("priya.sharma", "priya.sharma@techserve.com", "Priya Sharma", "Frontend", "SoftwareEngineer", "Employee@1234", isActive: false);
+        var anilUser = CreateUser("anil.mehta", "anil.mehta@techserve.com", "Anil Mehta", "DevOps", "DevOpsEngineer", "Employee@1234");
+        var saraUser = CreateUser("sara.khan", "sara.khan@techserve.com", "Sara Khan", "QA", "QAEngineer", "Employee@1234");
+        var devUser = CreateUser("dev.patel", "dev.patel@techserve.com", "Dev Patel", "Backend", "SeniorSoftwareEngineer", "Employee@1234");
 
         _context.Users.AddRange(ankitUser, nehaManagerUser, rohanUser, raviUser, priyaUser, anilUser, saraUser, devUser);
         await _context.SaveChangesAsync(cancellationToken);
@@ -163,8 +170,13 @@ public class DataSeeder
         _context.Timesheets.Add(raviTimesheet);
         await _context.SaveChangesAsync(cancellationToken);
 
+        await _notificationTestDataSeeder.SeedAsync(cancellationToken);
+
         _logger.LogInformation("Database seed completed.");
     }
+
+    public Task<NotificationTestDataSeedResponse> SeedNotificationTestDataAsync(CancellationToken cancellationToken = default) =>
+        _notificationTestDataSeeder.SeedAsync(cancellationToken);
 
     public async Task ClearAllDataAsync(CancellationToken cancellationToken = default)
     {
@@ -174,7 +186,7 @@ public class DataSeeder
         {
             await _context.Database.ExecuteSqlRawAsync(
                 """
-                TRUNCATE TABLE audit_logs, timesheet_line_items, timesheets, project_allocations, user_skills, project_milestones, resource_profiles, projects, skills, user_roles, role_permissions, permissions, roles, users, system_settings, system_configurations, activity_tags, ai_request_logs, scheduler_job_logs
+                TRUNCATE TABLE audit_logs, notification_logs, timesheet_compliance, timesheet_line_items, timesheets, project_allocations, user_skills, project_milestones, resource_profiles, projects, skills, user_roles, role_permissions, permissions, roles, users, system_settings, ai_request_logs, scheduler_job_logs
                 RESTART IDENTITY CASCADE;
                 """,
                 cancellationToken);
@@ -183,6 +195,8 @@ public class DataSeeder
         {
             await _context.TimesheetEntries.ExecuteDeleteAsync(cancellationToken);
             await _context.Timesheets.ExecuteDeleteAsync(cancellationToken);
+            await _context.NotificationLogs.ExecuteDeleteAsync(cancellationToken);
+            await _context.TimesheetCompliances.ExecuteDeleteAsync(cancellationToken);
             await _context.AuditLogs.ExecuteDeleteAsync(cancellationToken);
             await _context.Allocations.ExecuteDeleteAsync(cancellationToken);
             await _context.UserSkills.ExecuteDeleteAsync(cancellationToken);
@@ -280,8 +294,8 @@ public class DataSeeder
         string username,
         string email,
         string fullName,
-        Department? department,
-        Designation? designation,
+        string? department,
+        string? designation,
         string password,
         bool isTemporaryPassword = false,
         bool isActive = true)

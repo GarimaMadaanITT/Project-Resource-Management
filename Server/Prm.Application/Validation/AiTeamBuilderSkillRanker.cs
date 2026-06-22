@@ -14,21 +14,8 @@ public static class AiTeamBuilderSkillRanker
     public static IReadOnlyList<TeamBuilderRoleResultDto> EnrichAndCorrectRoles(
         IReadOnlyList<TeamBuilderRoleResultDto> roles,
         IReadOnlyList<AiTeamBuilderCandidateMapper.TeamBuilderCandidateSnapshot> assignableCandidates,
-        IReadOnlyList<AiTeamBuilderCandidateMapper.TeamBuilderCandidateSnapshot> allCandidates)
-    {
-        var assignedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var enriched = new List<TeamBuilderRoleResultDto>();
-
-        foreach (var role in roles)
-        {
-            var keywords = ExtractKeywords(role);
-            var benchMatches = RankBenchCandidates(keywords, assignableCandidates, assignedNames);
-            var corrected = CorrectRole(role, benchMatches, allCandidates, keywords, assignedNames);
-            enriched.Add(corrected with { BenchMatches = benchMatches });
-        }
-
-        return enriched;
-    }
+        IReadOnlyList<AiTeamBuilderCandidateMapper.TeamBuilderCandidateSnapshot> allCandidates) =>
+        TeamBuilderSlotMatcher.MatchSlots(roles, assignableCandidates, allCandidates);
 
     public static IReadOnlyList<string> ExtractKeywords(TeamBuilderRoleResultDto role)
     {
@@ -81,113 +68,31 @@ public static class AiTeamBuilderSkillRanker
             .ToList();
     }
 
-    private static TeamBuilderRoleResultDto CorrectRole(
-        TeamBuilderRoleResultDto role,
-        IReadOnlyList<TeamBuilderBenchMatchDto> benchMatches,
-        IReadOnlyList<AiTeamBuilderCandidateMapper.TeamBuilderCandidateSnapshot> allCandidates,
-        IReadOnlyList<string> keywords,
-        HashSet<string> assignedNames)
-    {
-        if (role.Status == TeamBuilderConstants.StatusFilled
-            && !string.IsNullOrWhiteSpace(role.AssignedEmployeeName))
-        {
-            assignedNames.Add(role.AssignedEmployeeName);
-            return role;
-        }
-
-        if (benchMatches.Count > 0)
-        {
-            var best = benchMatches[0];
-            assignedNames.Add(best.EmployeeName);
-            var matchedSkillText = string.Join(", ", best.MatchedSkills);
-            return role with
-            {
-                Status = TeamBuilderConstants.StatusFilled,
-                AssignedEmployeeName = best.EmployeeName,
-                MatchScore = best.MatchScore,
-                Reason = $"Best benched match: {matchedSkillText}; 100% available.",
-                Gap = null
-            };
-        }
-
-        var allocatedAlternative = FindBestAllocatedAlternative(keywords, allCandidates);
-        if (allocatedAlternative is not null)
-        {
-            return role with
-            {
-                Status = TeamBuilderConstants.StatusGap,
-                AssignedEmployeeName = null,
-                MatchScore = null,
-                Reason = null,
-                Gap = new TeamBuilderGapDto(
-                    TeamBuilderConstants.GapReasonAllocatedElsewhere,
-                    $"{allocatedAlternative.FullName} has relevant skills ({string.Join(", ", allocatedAlternative.MatchedSkills)}) but is not fully benched.",
-                    allocatedAlternative.FullName,
-                    allocatedAlternative.AvailableFromDate)
-            };
-        }
-
-        return role with
-        {
-            Status = TeamBuilderConstants.StatusGap,
-            AssignedEmployeeName = null,
-            MatchScore = null,
-            Reason = null,
-            Gap = role.Gap ?? new TeamBuilderGapDto(
-                TeamBuilderConstants.GapReasonNoSkill,
-                "No fully benched employee matches the required skills. Consider hiring or training.",
-                null,
-                null)
-        };
-    }
-
-    private static AllocatedAlternative? FindBestAllocatedAlternative(
-        IReadOnlyList<string> keywords,
-        IReadOnlyList<AiTeamBuilderCandidateMapper.TeamBuilderCandidateSnapshot> allCandidates)
-    {
-        var best = allCandidates
-            .Where(candidate => candidate.UtilisationPercent > 0)
-            .Select(candidate => ScoreCandidate(candidate, keywords))
-            .Where(item => item.Score > 0)
-            .OrderByDescending(item => item.Score)
-            .FirstOrDefault();
-
-        if (best is null)
-        {
-            return null;
-        }
-
-        var latestEnd = best.Candidate.ActiveAllocations
-            .Select(allocation => allocation.ToDate)
-            .DefaultIfEmpty()
-            .Max();
-
-        return new AllocatedAlternative(
-            best.Candidate.FullName,
-            best.MatchedSkills,
-            latestEnd == default ? null : latestEnd.ToString("yyyy-MM-dd"));
-    }
-
-    private static ScoredCandidate ScoreCandidate(
+    internal static ScoredCandidate ScoreCandidate(
         AiTeamBuilderCandidateMapper.TeamBuilderCandidateSnapshot candidate,
         IReadOnlyList<string> keywords)
     {
+        var expandedKeywords = AiSkillMatcher.ExpandKeywords(keywords);
+        var skillNames = candidate.Skills.Select(skill => skill.Name).ToList();
+        var matchedSkillNames = AiSkillMatcher.GetMatchedSkillLabels(skillNames, expandedKeywords);
+
         var matchedSkills = candidate.Skills
-            .Where(skill => keywords.Any(keyword =>
-                skill.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                || keyword.Contains(skill.Name, StringComparison.OrdinalIgnoreCase)))
+            .Where(skill => matchedSkillNames.Contains(skill.Name, StringComparer.OrdinalIgnoreCase))
             .Select(skill => $"{skill.Name} ({skill.Proficiency})")
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var designationBonus = keywords.Any(keyword =>
-            candidate.Designation?.Contains(keyword, StringComparison.OrdinalIgnoreCase) == true
-            || keyword.Contains("developer", StringComparison.OrdinalIgnoreCase)
-                && candidate.Designation?.Contains("Engineer", StringComparison.OrdinalIgnoreCase) == true)
-            ? 15
-            : 0;
+        var score = AiSkillMatcher.ScoreCandidateSkills(
+            skillNames,
+            expandedKeywords,
+            candidate.Department,
+            candidate.Designation);
 
-        var score = matchedSkills.Count * 30 + designationBonus;
+        if (matchedSkills.Count > 0 && score == 0)
+        {
+            score = matchedSkills.Count * 30;
+        }
+
         return new ScoredCandidate(candidate, score, matchedSkills);
     }
 
@@ -267,13 +172,8 @@ public static class AiTeamBuilderSkillRanker
         return string.IsNullOrWhiteSpace(title) ? "Role" : title;
     }
 
-    private sealed record ScoredCandidate(
+    internal sealed record ScoredCandidate(
         AiTeamBuilderCandidateMapper.TeamBuilderCandidateSnapshot Candidate,
         int Score,
         IReadOnlyList<string> MatchedSkills);
-
-    private sealed record AllocatedAlternative(
-        string FullName,
-        IReadOnlyList<string> MatchedSkills,
-        string? AvailableFromDate);
 }

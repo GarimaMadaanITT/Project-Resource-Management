@@ -140,6 +140,9 @@ public sealed class PrmApiClient
         return GetAsync<ManagerEmployeeTimesheetDetailModel>($"/api/manager/timesheets/employees/{employeeId}{query}", ct);
     }
 
+    public Task<RestoreTimesheetAccessResponseModel> RestoreTimesheetAccessAsync(int employeeId, CancellationToken ct = default) =>
+        PostAsync<RestoreTimesheetAccessResponseModel>($"/api/manager/timesheets/employees/{employeeId}/restore-timesheet-access", new { }, ct);
+
     public Task<ActivityTagsResponseModel> GetActivityTagsAsync(CancellationToken ct = default) =>
         GetAsync<ActivityTagsResponseModel>("/api/employee/timesheets/activity-tags", ct);
 

@@ -2,8 +2,10 @@ using Microsoft.Extensions.Logging;
 using Prm.Application.Common;
 using Prm.Application.DTOs.Employee;
 using Prm.Application.Interfaces;
+using Prm.Application.Services.Notifications;
 using Prm.Application.Validation;
 using Prm.Domain.Enums;
+using Prm.Domain.Exceptions;
 
 namespace Prm.Application.Services.Employees;
 
@@ -12,6 +14,7 @@ public class EmployeeTimesheetService : IEmployeeTimesheetService
     private readonly IEmployeeContextService _context;
     private readonly IResourceProfileRepository _resourceProfiles;
     private readonly ITimesheetRepository _timesheets;
+    private readonly ITimesheetComplianceRepository _complianceRepository;
     private readonly ISystemSettingsRepository _settings;
     private readonly IAuditLogService _auditLog;
     private readonly ILogger<EmployeeTimesheetService> _logger;
@@ -20,6 +23,7 @@ public class EmployeeTimesheetService : IEmployeeTimesheetService
         IEmployeeContextService context,
         IResourceProfileRepository resourceProfiles,
         ITimesheetRepository timesheets,
+        ITimesheetComplianceRepository complianceRepository,
         ISystemSettingsRepository settings,
         IAuditLogService auditLog,
         ILogger<EmployeeTimesheetService> logger)
@@ -27,6 +31,7 @@ public class EmployeeTimesheetService : IEmployeeTimesheetService
         _context = context;
         _resourceProfiles = resourceProfiles;
         _timesheets = timesheets;
+        _complianceRepository = complianceRepository;
         _settings = settings;
         _auditLog = auditLog;
         _logger = logger;
@@ -44,6 +49,11 @@ public class EmployeeTimesheetService : IEmployeeTimesheetService
         var resourceProfile = EntityGuard.EnsureFound(
             await _resourceProfiles.GetByIdAsync(employeeContext.ResourceProfileId, cancellationToken),
             ErrorMessages.EmployeeNotFound);
+
+        if (resourceProfile.TimesheetSubmissionFrozen)
+        {
+            throw new DomainException(ErrorMessages.TimesheetSubmissionFrozen);
+        }
 
         var weekStart = ActiveDateHelper.ResolveWeekStart(request.WeekStart);
         var settings = await _settings.GetAsync(cancellationToken);
@@ -66,6 +76,16 @@ public class EmployeeTimesheetService : IEmployeeTimesheetService
 
         var timesheet = TimesheetBuilder.Build(employeeContext.ResourceProfileId, weekStart, request.Entries);
         await _timesheets.AddAsync(timesheet, cancellationToken);
+
+        var compliance = await _complianceRepository.GetByResourceProfileAndWeekAsync(
+            employeeContext.ResourceProfileId,
+            weekStart,
+            cancellationToken);
+
+        if (compliance is not null)
+        {
+            await _complianceRepository.DeleteAsync(compliance, cancellationToken);
+        }
 
         await _auditLog.AuditAsync(
             AuditConstants.EntityNames.Timesheet,
@@ -105,11 +125,22 @@ public class EmployeeTimesheetService : IEmployeeTimesheetService
         var timesheetByWeek = existingTimesheets.ToDictionary(timesheet => timesheet.WeekStart);
 
         var currentWeekStart = ActiveDateHelper.GetCurrentWeekStartUtc();
+        var today = ActiveDateHelper.TodayUtc;
         var weeks = new List<TimesheetListItemDto>();
+        var weekStarts = Enumerable.Range(0, ValidationConstants.TimesheetHistoryWeeks)
+            .Select(index => currentWeekStart.AddDays(-7 * index))
+            .ToList();
+
+        var compliances = await _complianceRepository.GetByResourceProfileIdsAndWeeksAsync(
+            [employeeContext.ResourceProfileId],
+            weekStarts,
+            cancellationToken);
+
+        var complianceByWeek = compliances.ToDictionary(compliance => compliance.WeekStart);
 
         for (var index = 0; index < ValidationConstants.TimesheetHistoryWeeks; index++)
         {
-            var weekStart = currentWeekStart.AddDays(-7 * index);
+            var weekStart = weekStarts[index];
             var hadAllocation = resourceProfile.Allocations
                 .Any(allocation => ActiveDateHelper.IsAllocationActiveDuringWeek(allocation, weekStart));
 
@@ -118,20 +149,17 @@ public class EmployeeTimesheetService : IEmployeeTimesheetService
                 continue;
             }
 
-            if (timesheetByWeek.TryGetValue(weekStart, out var timesheet))
-            {
-                weeks.Add(new TimesheetListItemDto(
+            complianceByWeek.TryGetValue(weekStart, out var compliance);
+            var hasSubmitted = timesheetByWeek.ContainsKey(weekStart);
+
+            weeks.Add(new TimesheetListItemDto(
+                weekStart,
+                hasSubmitted ? timesheetByWeek[weekStart].TotalHours : 0,
+                TimesheetDisplayStatusHelper.Resolve(
+                    hasSubmitted,
+                    compliance?.Status,
                     weekStart,
-                    timesheet.TotalHours,
-                    TimesheetStatus.Submitted.ToString()));
-            }
-            else
-            {
-                weeks.Add(new TimesheetListItemDto(
-                    weekStart,
-                    0,
-                    TimesheetStatus.Missed.ToString()));
-            }
+                    today)));
         }
 
         return new MyTimesheetsResponse(weeks);

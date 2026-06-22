@@ -7,7 +7,9 @@ public record SkillMatchResultItem(
     string EmployeeName,
     int UtilisationPercent,
     int AvailabilityPercent,
-    string Reason);
+    string Reason,
+    int MatchScore = 0,
+    IReadOnlyList<string>? MatchedSkills = null);
 
 public record SkillMatchResponse(
     string ProjectName,

@@ -57,13 +57,16 @@ public static class ScreenHelper
 
     public static string FormatHealthStatus(string? status)
     {
-        var s = status?.ToUpperInvariant() ?? "UNKNOWN";
-        return s switch
+        var normalized = status?
+            .Replace(" ", string.Empty, StringComparison.Ordinal)
+            .ToUpperInvariant() ?? "UNKNOWN";
+
+        return normalized switch
         {
-            "ONTRACK" => "\u001b[32m🟢 ON TRACK\u001b[0m",
-            "ATTENTION" => "\u001b[33m🟡 ATTENTION\u001b[0m",
-            "ATRISK" => "\u001b[31m🔴 AT RISK\u001b[0m",
-            _ => $"⚪ {s}"
+            "ONTRACK" => "\u001b[32m● ON TRACK\u001b[0m",
+            "ATTENTION" => "\u001b[33m● ATTENTION\u001b[0m",
+            "ATRISK" => "\u001b[31m● AT RISK\u001b[0m",
+            _ => $"○ {status ?? "UNKNOWN"}"
         };
     }
 }
@@ -149,11 +152,18 @@ public static class ConsolePrompt
 
     public static DateOnly ReadDate(string label)
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
         while (true)
         {
             var input = ReadLine($"{label} (yyyy-MM-dd): ");
             if (DateOnly.TryParse(input, out var date))
             {
+                if (date < today)
+                {
+                    System.Console.WriteLine("Date cannot be in the past.");
+                    continue;
+                }
+
                 return date;
             }
 

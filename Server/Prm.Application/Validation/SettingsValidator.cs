@@ -22,4 +22,14 @@ public static class SettingsValidator
             throw new DomainException($"{fieldName} must be greater than zero.");
         }
     }
+
+    public static string NormalizeApiKey(string? apiKey)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new DomainException("LLM API key cannot be empty.");
+        }
+
+        return apiKey.Trim();
+    }
 }

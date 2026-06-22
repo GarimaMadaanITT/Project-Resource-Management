@@ -18,6 +18,8 @@ public static class MilestoneValidator
 
     public static void ValidateDueDateWithinProject(DateOnly dueDate, Project project)
     {
+        DateGuard.EnsureNotInPast(dueDate, "Milestone due date");
+
         if (dueDate < project.StartDate || dueDate > project.EndDate)
         {
             throw new DomainException(

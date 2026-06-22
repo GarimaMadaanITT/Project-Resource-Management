@@ -27,7 +27,6 @@ public static class BrdConsole
         }
     }
 
-    /// <returns>true = save, false = back, null = invalid/reprompt handled internally</returns>
     public static bool? ReadSaveOrBack()
     {
         while (true)
@@ -64,11 +63,5 @@ public static class BrdConsole
 
             System.Console.WriteLine("Please enter Y to deactivate or B to cancel.");
         }
-    }
-
-    public static bool IsProjectDurationValid(DateOnly startDate, DateOnly endDate, int totalStoryPoints)
-    {
-        var daysBetween = endDate.DayNumber - startDate.DayNumber;
-        return daysBetween >= totalStoryPoints;
     }
 }

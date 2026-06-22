@@ -119,14 +119,39 @@ public sealed class AdminUpdateEmployeeScreen : IMenuScreen
 
     public async Task<MenuAction> RunAsync(CancellationToken cancellationToken)
     {
+        IReadOnlyList<EmployeeListItemModel> employees;
+        try
+        {
+            var data = await _app.Api.GetEmployeesAsync(null, null, cancellationToken);
+            employees = data.Employees;
+        }
+        catch (ApiRequestException ex)
+        {
+            ScreenHelper.Clear();
+            BrdConsole.WriteTitle("UPDATE EMPLOYEE");
+            System.Console.WriteLine($"Error: {ex.Message}");
+            ScreenHelper.Pause();
+            return MenuAction.Back;
+        }
+
         ScreenHelper.Clear();
         BrdConsole.WriteTitle("UPDATE EMPLOYEE");
+        System.Console.WriteLine($"{"ID",4}  {"Name",-18} {"Department",-12} {"Designation",-22} {"Status",10}");
+        BrdConsole.WriteRule();
+        foreach (var item in employees)
+        {
+            var designation = string.IsNullOrWhiteSpace(item.Designation) ? "-" : item.Designation;
+            System.Console.WriteLine(
+                $"{item.Id,4}  {item.Name,-18} {item.Department,-12} {designation,-22} {item.Status.ToUpperInvariant(),10}");
+        }
+
+        BrdConsole.WriteRule();
+        System.Console.WriteLine();
         var id = ConsolePrompt.ReadInt("Employee ID: ");
 
         try
         {
-            var employees = await _app.Api.GetEmployeesAsync(null, null, cancellationToken);
-            var employee = employees.Employees.FirstOrDefault(item => item.Id == id);
+            var employee = employees.FirstOrDefault(item => item.Id == id);
             if (employee is null)
             {
                 System.Console.WriteLine("Employee not found.");

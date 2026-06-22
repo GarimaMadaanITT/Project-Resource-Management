@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Prm.Application.Common;
 using Prm.Application.Interfaces;
+using Prm.Application.Services.Notifications;
 using Prm.Application.Validation;
 
 namespace Prm.Application.Services.Scheduler;
@@ -12,6 +13,7 @@ public class ProjectHealthRecomputeService : IProjectHealthRecomputeService
     private readonly ITimesheetRepository _timesheets;
     private readonly ISystemSettingsRepository _settings;
     private readonly IAuditLogService _auditLog;
+    private readonly IProjectAtRiskNotificationService _atRiskNotification;
     private readonly ILogger<ProjectHealthRecomputeService> _logger;
 
     public ProjectHealthRecomputeService(
@@ -20,6 +22,7 @@ public class ProjectHealthRecomputeService : IProjectHealthRecomputeService
         ITimesheetRepository timesheets,
         ISystemSettingsRepository settings,
         IAuditLogService auditLog,
+        IProjectAtRiskNotificationService atRiskNotification,
         ILogger<ProjectHealthRecomputeService> logger)
     {
         _projects = projects;
@@ -27,6 +30,7 @@ public class ProjectHealthRecomputeService : IProjectHealthRecomputeService
         _timesheets = timesheets;
         _settings = settings;
         _auditLog = auditLog;
+        _atRiskNotification = atRiskNotification;
         _logger = logger;
     }
 
@@ -75,8 +79,9 @@ public class ProjectHealthRecomputeService : IProjectHealthRecomputeService
                 settings.MaxWeeklyHours,
                 today);
 
+            var previousHealth = project.HealthStatus;
             var newHealth = ProjectHealthStatusResolver.Resolve(flags);
-            if (project.HealthStatus == newHealth)
+            if (previousHealth == newHealth)
             {
                 continue;
             }
@@ -95,6 +100,21 @@ public class ProjectHealthRecomputeService : IProjectHealthRecomputeService
                 null,
                 AuditConstants.Sources.Scheduler,
                 cancellationToken);
+
+            if (newHealth == Domain.Enums.HealthStatus.AtRisk)
+            {
+                try
+                {
+                    await _atRiskNotification.NotifyAsync(project, flags, previousHealth, cancellationToken);
+                }
+                catch (Exception exception)
+                {
+                    _logger.LogError(
+                        exception,
+                        "At-risk notification failed. ProjectId={ProjectId}",
+                        project.Id);
+                }
+            }
 
             updatedCount++;
         }

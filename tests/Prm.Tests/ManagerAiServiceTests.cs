@@ -108,7 +108,7 @@ public class ManagerAiServiceTests
 
         var resourceProfiles = new Mock<IResourceProfileRepository>();
 
-        resourceProfiles.Setup(repo => repo.GetTeamByManagerUserIdAsync(managerUserId, true, It.IsAny<CancellationToken>()))
+        resourceProfiles.Setup(repo => repo.GetOrgWideCandidatesAsync(It.IsAny<CancellationToken>()))
 
             .ReturnsAsync(new List<ResourceProfile> { resourceProfile });
 
@@ -175,6 +175,142 @@ public class ManagerAiServiceTests
         Assert.Equal("Dev Patel", response.Matches[0].EmployeeName);
 
         Assert.False(response.UsedFallbackProvider);
+
+    }
+
+
+
+    [Fact]
+
+    public async Task SkillMatchAsync_Uses_OrgWide_Candidates_Outside_Manager_Team()
+
+    {
+
+        var managerUserId = 2;
+
+        var projectId = 1;
+
+        var otherManagerId = 99;
+
+
+
+        var project = new Project
+
+        {
+
+            Id = projectId,
+
+            Name = "Alpha Portal",
+
+            ManagerUserId = managerUserId,
+
+            Status = ProjectStatus.Active,
+
+            HealthStatus = HealthStatus.OnTrack,
+
+            StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-1)),
+
+            EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(3))
+
+        };
+
+
+
+        var orgWideEmployee = BuildResourceProfile(20, otherManagerId, "Org Wide Dev", ["React", "TypeScript"]);
+
+
+
+        var context = new Mock<IManagerContextService>();
+
+        context.Setup(service => service.ResolveAsync(managerUserId, It.IsAny<CancellationToken>()))
+
+            .ReturnsAsync(new ManagerContext(managerUserId));
+
+
+
+        var projects = new Mock<IProjectRepository>();
+
+        projects.Setup(repo => repo.GetByIdWithAllocationsAsync(projectId, It.IsAny<CancellationToken>()))
+
+            .ReturnsAsync(project);
+
+
+
+        var resourceProfiles = new Mock<IResourceProfileRepository>();
+
+        resourceProfiles.Setup(repo => repo.GetOrgWideCandidatesAsync(It.IsAny<CancellationToken>()))
+
+            .ReturnsAsync(new List<ResourceProfile> { orgWideEmployee });
+
+
+
+        var timesheets = new Mock<ITimesheetRepository>();
+
+        timesheets.Setup(repo => repo.GetRecentActivityTagsAsync(orgWideEmployee.Id, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+
+            .ReturnsAsync(new List<string>());
+
+
+
+        var settings = new Mock<ISystemSettingsRepository>();
+
+        settings.Setup(repo => repo.GetAsync(It.IsAny<CancellationToken>()))
+
+            .ReturnsAsync(new SystemSetting { MaxWeeklyHours = 40 });
+
+
+
+        var llm = new Mock<ILlmCompletionService>();
+
+        llm.Setup(service => service.CompleteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+
+            .ReturnsAsync(new LlmCompletionResult(
+
+                """{"matches":[{"employeeId":20,"reason":"Strong React fit."}]}""",
+
+                UsedFallbackProvider: false));
+
+
+
+        var service = new ManagerAiService(
+
+            context.Object,
+
+            projects.Object,
+
+            resourceProfiles.Object,
+
+            timesheets.Object,
+
+            settings.Object,
+
+            llm.Object,
+
+            NullLogger<ManagerAiService>.Instance);
+
+
+
+        var response = await service.SkillMatchAsync(
+
+            managerUserId,
+
+            new SkillMatchRequest(projectId, "Need React developer"));
+
+
+
+        Assert.Single(response.Matches);
+
+        Assert.Equal(20, response.Matches[0].EmployeeId);
+
+        Assert.Equal("Org Wide Dev", response.Matches[0].EmployeeName);
+
+        resourceProfiles.Verify(repo => repo.GetOrgWideCandidatesAsync(It.IsAny<CancellationToken>()), Times.Once);
+
+        resourceProfiles.Verify(
+
+            repo => repo.GetTeamByManagerUserIdAsync(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+
+            Times.Never);
 
     }
 
@@ -346,7 +482,7 @@ public class ManagerAiServiceTests
 
         user.Email = $"{name.Replace(" ", ".").ToLowerInvariant()}@example.com";
 
-        user.Department = Department.Engineering;
+        user.Department = "Engineering";
 
         user.Skills = skills.Select((skill, index) => new UserSkill
 
@@ -402,7 +538,7 @@ public class ManagerAiServiceTests
 
         user.Email = $"{name.Replace(" ", ".").ToLowerInvariant()}@example.com";
 
-        user.Department = Department.Engineering;
+        user.Department = "Engineering";
 
         user.Skills = skills.Select((skill, index) => new UserSkill
 

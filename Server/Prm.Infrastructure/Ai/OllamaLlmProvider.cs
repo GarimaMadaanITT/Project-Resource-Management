@@ -25,7 +25,7 @@ public class OllamaLlmProvider : ILlmProvider
 
     public LlmProviderType ProviderType => LlmProviderType.Ollama;
 
-    public bool RequiresApiKey => false;
+    public bool RequiresApiKey => _options.RequireApiKey;
 
     public async Task<string> CompleteAsync(
         string? apiKey,
@@ -33,11 +33,26 @@ public class OllamaLlmProvider : ILlmProvider
         string userPrompt,
         CancellationToken cancellationToken)
     {
+        if (_options.RequireApiKey && string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("Ollama API key is required. Configure it in Admin system settings.");
+        }
+
         var client = _httpClientFactory.CreateClient("Ollama");
         var prompt = $"{systemPrompt.Trim()}\n\n{userPrompt.Trim()}";
         var payload = new OllamaGenerateRequest(_options.Model, prompt, Stream: false);
 
-        using var response = await client.PostAsJsonAsync("api/generate", payload, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/generate")
+        {
+            Content = JsonContent.Create(payload)
+        };
+
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            request.Headers.TryAddWithoutValidation(_options.ApiKeyHeaderName, apiKey.Trim());
+        }
+
+        using var response = await client.SendAsync(request, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (!response.IsSuccessStatusCode)

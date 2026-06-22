@@ -47,6 +47,44 @@ public class AdminEmployeeServiceTests
         await Assert.ThrowsAsync<DomainException>(() => service.DeactivateAsync(10, 99));
     }
 
+    [Fact]
+    public async Task UpdateAsync_Accepts_Custom_Department_Label()
+    {
+        var user = TestDataHelpers.CreateUser(UserRole.Employee, fullName: "Anil Mehta");
+        var resourceProfile = TestDataHelpers.CreateResourceProfile(1, fullName: "Anil Mehta");
+        resourceProfile.User = user;
+
+        _resourceProfiles.Setup(repository => repository.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(resourceProfile);
+        _users.Setup(repository => repository.UpdateAsync(It.IsAny<User>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var command = new AdminEmployeeCommandService(
+            _resourceProfiles.Object,
+            _users.Object,
+            _auditLog.Object,
+            NullLogger<AdminEmployeeCommandService>.Instance);
+
+        await command.UpdateAsync(1, new UpdateEmployeeRequest("Cloud Platform", "Senior Engineer"), 99);
+
+        Assert.Equal("Cloud Platform", resourceProfile.User.Department);
+        Assert.Equal("Senior Engineer", resourceProfile.User.Designation);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_Throws_When_Department_Is_Numeric_Only()
+    {
+        var resourceProfile = TestDataHelpers.CreateResourceProfile(1, fullName: "Anil Mehta");
+        _resourceProfiles.Setup(repository => repository.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(resourceProfile);
+
+        var command = new AdminEmployeeCommandService(
+            _resourceProfiles.Object,
+            _users.Object,
+            _auditLog.Object,
+            NullLogger<AdminEmployeeCommandService>.Instance);
+
+        await Assert.ThrowsAsync<DomainException>(() =>
+            command.UpdateAsync(1, new UpdateEmployeeRequest("123", null), 99));
+    }
+
     private AdminEmployeeService CreateService()
     {
         var accountDeactivation = new AccountDeactivationService(

@@ -253,10 +253,23 @@ public sealed class AdminViewSettingsScreen : IMenuScreen
         try
         {
             var s = await _app.Api.GetSettingsAsync(cancellationToken);
-            System.Console.WriteLine($"LLM Provider     : {s.LlmProvider}");
-            System.Console.WriteLine($"LLM API Key      : {s.LlmApiKeyMasked}");
+            var apiKeyDisplay = string.IsNullOrEmpty(s.LlmApiKeyMasked)
+                ? "(not configured)"
+                : s.LlmApiKeyMasked;
+
+            System.Console.WriteLine($"LLM Provider      : {s.LlmProvider}");
+            System.Console.WriteLine($"LLM API Key       : {apiKeyDisplay}");
+            if (string.Equals(s.LlmProvider, "Ollama", StringComparison.OrdinalIgnoreCase))
+            {
+                System.Console.WriteLine("                    (Set Ollama:BaseUrl in appsettings.json; API key from Admin if RequireApiKey=true)");
+            }
+            else if (string.IsNullOrEmpty(s.LlmApiKeyMasked))
+            {
+                System.Console.WriteLine("                    (Set API key below to enable live Gemini/Groq calls)");
+            }
+
             System.Console.WriteLine($"Scheduler Interval: {s.SchedulerIntervalHours} hours");
-            System.Console.WriteLine($"Max Weekly Hours : {s.MaxWeeklyHours}");
+            System.Console.WriteLine($"Max Weekly Hours  : {s.MaxWeeklyHours}");
         }
         catch (ApiRequestException ex)
         {
@@ -312,12 +325,22 @@ public sealed class AdminUpdateApiKeyScreen : IMenuScreen
     {
         ScreenHelper.Clear();
         ScreenHelper.WriteHeader("Update LLM API Key", _app.Session);
-        var key = ConsolePrompt.ReadLine("API key: ", secret: true);
+        System.Console.WriteLine("Required for Gemini and Groq. Required for Ollama when RequireApiKey=true in appsettings.json.");
+        System.Console.WriteLine("Paste-friendly input (visible while typing).");
+        System.Console.WriteLine();
+
+        var key = ConsolePrompt.ReadLine("API key: ");
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            System.Console.WriteLine("API key cannot be empty.");
+            ScreenHelper.Pause();
+            return MenuAction.Back;
+        }
 
         try
         {
-            await _app.Api.UpdateSettingsAsync(new { llmApiKey = key }, cancellationToken);
-            ScreenHelper.WriteSuccess("API key updated.");
+            await _app.Api.UpdateSettingsAsync(new { llmApiKey = key.Trim() }, cancellationToken);
+            ScreenHelper.WriteSuccess("API key updated. Use View Settings to confirm masked key.");
         }
         catch (ApiRequestException ex)
         {

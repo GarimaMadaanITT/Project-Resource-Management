@@ -15,7 +15,7 @@ public sealed class ManagerAiAssistantMenuScreen : IMenuScreen
     {
         ScreenHelper.Clear();
         ScreenHelper.WriteHeader("AI Assistant", _app.Session);
-        System.Console.WriteLine("1. Skill Match — find employees for a requirement");
+        System.Console.WriteLine("1. Skill Match — find employees org-wide for a requirement");
         System.Console.WriteLine("2. Risk Summary — project health analysis");
         System.Console.WriteLine("3. Team Builder — build a multi-role team from one prompt");
         System.Console.WriteLine("4. Back");
@@ -77,29 +77,7 @@ public sealed class ManagerAiSkillMatchScreen : IMenuScreen
             var result = await _app.Api.SkillMatchAsync(projectId.Value, requirement, cancellationToken);
 
             System.Console.WriteLine();
-            System.Console.WriteLine($"AI-MATCHED RESULTS — {result.ProjectName}");
-            System.Console.WriteLine(new string('-', 58));
-            if (result.Matches.Count == 0)
-            {
-                System.Console.WriteLine("No matches returned.");
-            }
-            else
-            {
-                for (var i = 0; i < result.Matches.Count; i++)
-                {
-                    var match = result.Matches[i];
-                    System.Console.WriteLine(
-                        $"{i + 1}. {match.EmployeeName} (ID {match.EmployeeId}) — {match.UtilisationPercent}% util, {match.AvailabilityPercent}% free");
-                    System.Console.WriteLine($"   {match.Reason}");
-                }
-            }
-
-            System.Console.WriteLine();
-            System.Console.WriteLine(result.Disclaimer);
-            if (result.UsedFallbackProvider)
-            {
-                System.Console.WriteLine("(Used offline ranking — configure LLM API key in Admin settings for live AI.)");
-            }
+            AiResultsFormatter.WriteSkillMatchResults(result, result.UsedFallbackProvider);
 
             ScreenHelper.Pause();
         }

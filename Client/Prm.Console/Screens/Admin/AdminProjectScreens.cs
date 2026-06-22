@@ -92,30 +92,6 @@ public sealed class AdminCreateProjectScreen : IMenuScreen
         {
             ScreenHelper.Clear();
             BrdConsole.WriteTitle("CREATE PROJECT");
-            System.Console.WriteLine("Project Name        : _");
-            System.Console.WriteLine("Description         : _");
-            System.Console.WriteLine("Start Date          : (DD-MM-YYYY) _");
-            System.Console.WriteLine("End Date            : (DD-MM-YYYY) _");
-            System.Console.WriteLine("Status              : (1) PLANNED   (2) ACTIVE   (3) ON_HOLD");
-            System.Console.WriteLine("Assign Manager      : (Enter Manager ID) _");
-            System.Console.WriteLine("Total Story Points  : _");
-            System.Console.WriteLine();
-            BrdConsole.WriteRule();
-            System.Console.WriteLine("[S] Save     [B] Back");
-            System.Console.WriteLine();
-
-            var action = BrdConsole.ReadSaveOrBack();
-            if (action == false)
-            {
-                return MenuAction.Back;
-            }
-
-            if (action != true)
-            {
-                continue;
-            }
-
-            System.Console.WriteLine();
             var name = ConsolePrompt.ReadLine("Project Name        : ");
             var description = ConsolePrompt.ReadLine("Description         : ");
             var start = ConsolePrompt.ReadDate("Start Date");
@@ -130,15 +106,6 @@ public sealed class AdminCreateProjectScreen : IMenuScreen
             };
             var managerUserId = ConsolePrompt.ReadInt("Assign Manager      : ");
             var storyPoints = ConsolePrompt.ReadInt("Total Story Points  : ", min: 0);
-
-            if (!BrdConsole.IsProjectDurationValid(start, end, storyPoints))
-            {
-                var days = end.DayNumber - start.DayNumber;
-                System.Console.WriteLine(
-                    $"Validation error: project duration ({days} days) must be greater than or equal to total story points ({storyPoints}).");
-                ScreenHelper.Pause();
-                continue;
-            }
 
             try
             {
@@ -199,30 +166,7 @@ public sealed class AdminUpdateProjectScreen : IMenuScreen
             ScreenHelper.Clear();
             BrdConsole.WriteTitle("UPDATE PROJECT DETAILS");
             System.Console.WriteLine($"── {selected.Name} ───────────────────────────────");
-            System.Console.WriteLine($"Project Name         : ");
-            System.Console.WriteLine("Description          : ");
-            System.Console.WriteLine("Start Date           : ");
-            System.Console.WriteLine("End Date             : ");
-            System.Console.WriteLine("Status               : (1) PLANNED   (2) ACTIVE   (3) ON_HOLD   (4) COMPLETED");
-            System.Console.WriteLine("Assign Manager       : (Enter Manager ID)    ");
-            System.Console.WriteLine($"Total Story Points   : ");
-            BrdConsole.WriteRule();
-            System.Console.WriteLine("[S] Save     [B] Back");
-            System.Console.WriteLine();
-
-            var action = BrdConsole.ReadSaveOrBack();
-            if (action == false)
-            {
-                return MenuAction.Back;
-            }
-
-            if (action != true)
-            {
-                continue;
-            }
-
-            System.Console.WriteLine();
-            var name = ConsolePrompt.ReadLine($"Project Name         : ");
+            var name = ConsolePrompt.ReadLine("Project Name         : ");
             var description = ConsolePrompt.ReadLine("Description          : ");
             var start = ConsolePrompt.ReadDate("Start Date");
             var end = ConsolePrompt.ReadDate("End Date");
@@ -237,15 +181,6 @@ public sealed class AdminUpdateProjectScreen : IMenuScreen
             };
             var managerUserId = ConsolePrompt.ReadInt("Assign Manager       : ");
             var storyPoints = ConsolePrompt.ReadInt("Total Story Points   : ", min: 0);
-
-            if (!BrdConsole.IsProjectDurationValid(start, end, storyPoints))
-            {
-                var days = end.DayNumber - start.DayNumber;
-                System.Console.WriteLine(
-                    $"Validation error: project duration ({days} days) must be greater than or equal to total story points ({storyPoints}).");
-                ScreenHelper.Pause();
-                continue;
-            }
 
             try
             {

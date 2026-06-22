@@ -14,6 +14,7 @@ using Prm.Infrastructure.Repositories;
 using Prm.Infrastructure.Security;
 using Prm.Infrastructure.Services;
 using Prm.Infrastructure.Ai;
+using Prm.Infrastructure.Email;
 
 namespace Prm.Infrastructure;
 
@@ -34,6 +35,7 @@ public static class DependencyInjection
 
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
         services.AddScoped<DataSeeder>();
+        services.AddScoped<NotificationTestDataSeeder>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IResourceProfileRepository, ResourceProfileRepository>();
@@ -57,12 +59,17 @@ public static class DependencyInjection
             client.BaseAddress = new Uri("https://api.groq.com/");
             client.Timeout = TimeSpan.FromSeconds(60);
         });
-        services.Configure<OllamaOptions>(configuration.GetSection(OllamaOptions.SectionName));
+        services.AddOptions<OllamaOptions>()
+            .Bind(configuration.GetSection(OllamaOptions.SectionName))
+            .PostConfigure(OllamaOptions.Normalize)
+            .Validate(
+                options => !string.IsNullOrWhiteSpace(options.Model),
+                "Ollama:Model must be configured in appsettings.json.")
+            .ValidateOnStart();
         services.AddHttpClient("Ollama", (sp, client) =>
         {
             var options = sp.GetRequiredService<IOptions<OllamaOptions>>().Value;
-            var baseUrl = options.BaseUrl.TrimEnd('/') + "/";
-            client.BaseAddress = new Uri(baseUrl);
+            client.BaseAddress = new Uri(options.BaseUrl.TrimEnd('/') + "/");
             client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds <= 0 ? 120 : options.TimeoutSeconds);
         });
         services.AddScoped<ILlmProvider, GeminiLlmProvider>();
@@ -71,6 +78,13 @@ public static class DependencyInjection
         services.AddScoped<ILlmProviderRegistry, LlmProviderRegistry>();
         services.AddScoped<DeterministicLlmProvider>();
         services.AddScoped<ILlmCompletionService, LlmCompletionService>();
+
+        services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
+        services.AddScoped<LoggingEmailService>();
+        services.AddScoped<SmtpEmailService>();
+        services.AddScoped<IEmailService, CompositeEmailService>();
+        services.AddScoped<ITimesheetComplianceRepository, TimesheetComplianceRepository>();
+        services.AddScoped<INotificationLogRepository, NotificationLogRepository>();
 
         var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
             ?? new JwtSettings();

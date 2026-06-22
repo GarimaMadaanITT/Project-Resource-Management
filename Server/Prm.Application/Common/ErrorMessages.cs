@@ -28,4 +28,5 @@ public static class ErrorMessages
     public const string ProjectNotOwnedByManager = "You do not manage this project.";
     public const string TimesheetAlreadySubmitted = "A timesheet for this week has already been submitted.";
     public const string TimesheetNotFound = "Timesheet not found for this week.";
+    public const string TimesheetSubmissionFrozen = "Your timesheet submission access is frozen. Contact your manager to restore access.";
 }

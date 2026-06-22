@@ -3,6 +3,7 @@ using Moq;
 using Prm.Application.DTOs.Admin;
 using Prm.Application.Interfaces;
 using Prm.Application.Services.Admin;
+using Prm.Application.Validation;
 using Prm.Domain.Entities;
 using Prm.Domain.Enums;
 using Prm.Domain.Exceptions;
@@ -26,8 +27,8 @@ public class AdminProjectServiceTests
         var request = new CreateProjectRequest(
             "Valid Project",
             "Description",
-            new DateOnly(2026, 1, 1),
-            new DateOnly(2026, 12, 31),
+            ActiveDateHelper.TodayUtc.AddDays(1),
+            ActiveDateHelper.TodayUtc.AddDays(365),
             "Planned",
             2,
             100);

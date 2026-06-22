@@ -27,13 +27,17 @@ public sealed class ManagerAiTeamBuilderScreen : IMenuScreen
             var requirement = PromptForRequirement();
             if (requirement is null)
             {
-                return MenuAction.None;
+                return MenuAction.Back;
             }
 
             System.Console.WriteLine();
             System.Console.WriteLine("Searching... (AI team matching in progress)");
             var result = await _app.Api.TeamBuilderAsync(requirement, cancellationToken);
-            DisplayResults(result);
+            AiResultsFormatter.WriteTeamBuilderResults(result);
+            if (result.UsedFallbackProvider)
+            {
+                System.Console.WriteLine("(Used offline matching — configure LLM provider in Admin settings for live AI.)");
+            }
             ScreenHelper.Pause();
         }
         catch (ApiRequestException ex)
@@ -42,15 +46,20 @@ public sealed class ManagerAiTeamBuilderScreen : IMenuScreen
             ScreenHelper.Pause();
         }
 
-        return MenuAction.None;
+        return MenuAction.Back;
     }
 
     private static string? PromptForRequirement()
     {
         System.Console.WriteLine("Describe your team requirement in plain English");
         System.Console.WriteLine("(include every role, skills, and proficiency).");
-        System.Console.WriteLine("Press [E] then Enter to load the banking portal example, or type your requirement:");
+        System.Console.WriteLine("Press [E] then Enter to load the banking portal example, [B] to go back, or type your requirement:");
         var input = ConsolePrompt.ReadLine("> ");
+        if (string.Equals(input, "B", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
         if (string.Equals(input, "E", StringComparison.OrdinalIgnoreCase))
         {
             System.Console.WriteLine();
@@ -67,71 +76,5 @@ public sealed class ManagerAiTeamBuilderScreen : IMenuScreen
         }
 
         return input.Trim();
-    }
-
-    private static void DisplayResults(TeamBuilderResponseModel result)
-    {
-        System.Console.WriteLine();
-        System.Console.WriteLine("── Team Builder Results ──────────────────────");
-        System.Console.WriteLine($"Candidates considered: {result.CandidatesConsidered} " +
-                                 $"(fully benched: {result.AssignableCandidates})");
-        System.Console.WriteLine();
-
-        foreach (var role in result.Roles)
-        {
-            System.Console.WriteLine($"Role: {role.RoleTitle}");
-            var skillsText = role.RequiredSkills.Count == 0
-                ? "none"
-                : string.Join(", ", role.RequiredSkills.Select(
-                    skill => skill.MinProficiency == "ANY"
-                        ? skill.SkillName
-                        : $"{skill.SkillName} ({skill.MinProficiency})"));
-            System.Console.WriteLine($"  Required: {skillsText}");
-            System.Console.WriteLine($"  Status:   {role.Status}");
-
-            if (role.BenchMatches.Count > 0)
-            {
-                System.Console.WriteLine("  Benched matches (ranked):");
-                for (var i = 0; i < role.BenchMatches.Count; i++)
-                {
-                    var bench = role.BenchMatches[i];
-                    var skills = bench.MatchedSkills.Count == 0
-                        ? "none"
-                        : string.Join(", ", bench.MatchedSkills);
-                    System.Console.WriteLine(
-                        $"    {i + 1}. {bench.EmployeeName} (UserId {bench.UserId}, ProfileId {bench.EmployeeId}) — score {bench.MatchScore}, skills: {skills}");
-                }
-            }
-
-            if (role.Status == "FILLED")
-            {
-                System.Console.WriteLine($"  Match:    {role.AssignedEmployeeName} (score {role.MatchScore})");
-                if (!string.IsNullOrWhiteSpace(role.Reason))
-                {
-                    System.Console.WriteLine($"  Reason:   {role.Reason}");
-                }
-            }
-            else if (role.Gap is not null)
-            {
-                System.Console.WriteLine($"  Why:      {role.Gap.ReasonType}");
-                System.Console.WriteLine($"  Note:     {role.Gap.Message}");
-                if (!string.IsNullOrWhiteSpace(role.Gap.AlternativeEmployeeName))
-                {
-                    var availableFrom = string.IsNullOrWhiteSpace(role.Gap.AvailableFromDate)
-                        ? "unknown date"
-                        : role.Gap.AvailableFromDate;
-                    System.Console.WriteLine(
-                        $"            {role.Gap.AlternativeEmployeeName} may be available from {availableFrom}.");
-                }
-            }
-
-            System.Console.WriteLine();
-        }
-
-        System.Console.WriteLine(result.Disclaimer);
-        if (result.UsedFallbackProvider)
-        {
-            System.Console.WriteLine("(Used offline matching — configure LLM provider in Admin settings for live AI.)");
-        }
     }
 }

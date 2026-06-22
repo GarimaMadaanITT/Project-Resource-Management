@@ -1,3 +1,5 @@
+using Prm.Application.DTOs.Admin;
+
 namespace Prm.Application.Interfaces;
 
 public interface ISchedulerOrchestrator
@@ -18,4 +20,8 @@ public interface IProjectHealthRecomputeService
 public interface ITimesheetMissedDetectionService
 {
     Task<int> RunAsync(CancellationToken cancellationToken = default);
+
+    Task<TimesheetComplianceForceResponse> ForceAdvanceComplianceAsync(
+        string username,
+        CancellationToken cancellationToken = default);
 }

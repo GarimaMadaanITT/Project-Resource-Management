@@ -27,7 +27,7 @@ public class ManagerAiService : IManagerAiService
 
         You are a resource planning assistant for an IT services company.
 
-        Given a project requirement and a list of pre-filtered employee candidates,
+        Given a project requirement and a list of pre-filtered organization-wide employee candidates,
 
         return ONLY valid JSON in this exact shape:
 
@@ -135,7 +135,7 @@ public class ManagerAiService : IManagerAiService
 
 
 
-        var managerContext = await _context.ResolveAsync(managerUserId, cancellationToken);
+        await _context.ResolveAsync(managerUserId, cancellationToken);
 
         var project = EntityGuard.EnsureFound(
 
@@ -155,19 +155,13 @@ public class ManagerAiService : IManagerAiService
 
 
 
-        var team = await _resourceProfiles.GetTeamByManagerUserIdAsync(
-
-            managerContext.ManagerUserId,
-
-            activeOnly: true,
-
-            cancellationToken);
+        var orgCandidates = await _resourceProfiles.GetOrgWideCandidatesAsync(cancellationToken);
 
 
 
         var filtered = AiCapacityFilter.FilterTeam(
 
-            team,
+            orgCandidates,
 
             settings.MaxWeeklyHours,
 
@@ -191,7 +185,7 @@ public class ManagerAiService : IManagerAiService
 
             throw new DomainException(
 
-                $"No team members have {requiredText}. Try lowering the hours requirement or ending an allocation first.");
+                $"No organization employees have {requiredText}. Try lowering the hours requirement or ending an allocation first.");
 
         }
 
@@ -215,9 +209,8 @@ public class ManagerAiService : IManagerAiService
 
         var llmResult = await _llm.CompleteAsync(SkillMatchSystemPrompt, userPrompt, cancellationToken);
 
-        var matches = AiMatchResponseParser.Parse(llmResult.Text, candidatesById);
-
-
+        var llmMatches = AiMatchResponseParser.Parse(llmResult.Text, candidatesById);
+        var matches = AiSkillMatchRanker.RankMatches(request.Requirement.Trim(), enriched, llmMatches);
 
         return new SkillMatchResponse(
 
@@ -284,7 +277,17 @@ public class ManagerAiService : IManagerAiService
         var llmResult = await _llm.CompleteAsync(systemPrompt, userPrompt, cancellationToken);
 
         IReadOnlyList<TeamBuilderRoleResultDto> roles;
-        if (llmResult.UsedFallbackProvider)
+        var slots = TeamBuilderRequirementSlotParser.ParseSlots(requirement);
+        if (slots.Count > 0)
+        {
+            roles = TeamBuilderRequirementSlotParser.ToUnresolvedRoles(slots);
+            if (!llmResult.UsedFallbackProvider)
+            {
+                var llmRoles = AiTeamBuilderResponseParser.Parse(llmResult.Text);
+                roles = TeamBuilderRequirementSlotParser.MergeLlmSkills(roles, llmRoles);
+            }
+        }
+        else if (llmResult.UsedFallbackProvider)
         {
             roles = AiTeamBuilderRequirementAnalyzer.ParseRequirementToRoles(requirement);
         }
@@ -293,7 +296,7 @@ public class ManagerAiService : IManagerAiService
             roles = AiTeamBuilderResponseParser.Parse(llmResult.Text);
         }
 
-        roles = AiTeamBuilderSkillRanker.EnrichAndCorrectRoles(roles, assignableCandidates, allCandidates);
+        roles = TeamBuilderSlotMatcher.MatchSlots(roles, assignableCandidates, allCandidates);
 
         LogCandidatePool(managerUserId, requirement, allCandidates, assignableCandidates);
 

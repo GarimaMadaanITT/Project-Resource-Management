@@ -39,6 +39,9 @@ public static class AllocationValidator
 
     private static void ValidateDateRange(DateOnly fromDate, DateOnly toDate)
     {
+        DateGuard.EnsureNotInPast(fromDate, "From date");
+        DateGuard.EnsureNotInPast(toDate, "To date");
+
         if (fromDate >= toDate)
         {
             throw new DomainException("From date must be before to date.");

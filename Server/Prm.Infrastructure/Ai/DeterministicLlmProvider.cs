@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Prm.Application.Common;
 using Prm.Application.Interfaces;
+using Prm.Application.Validation;
 
 namespace Prm.Infrastructure.Ai;
 
@@ -35,32 +36,50 @@ public partial class DeterministicLlmProvider
     private static string BuildSkillMatchJson(string userPrompt)
     {
         var requirement = ExtractLineValue(userPrompt, "Requirement:");
-        var keywords = Tokenize(requirement);
+        var expandedKeywords = AiSkillMatcher.ExpandRequirement(requirement);
         var candidates = ParseCandidates(userPrompt);
 
         var ranked = candidates
             .Select(candidate =>
             {
-                var skillScore = candidate.Skills.Count(skill =>
-                    keywords.Any(keyword => skill.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
+                var matchedSkills = AiSkillMatcher.GetMatchedSkillLabels(candidate.Skills, expandedKeywords);
                 var tagScore = candidate.Tags.Count(tag =>
-                    keywords.Any(keyword => tag.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
-                var score = skillScore * 2 + tagScore + candidate.FreeHours / 10m;
-                var matchedSkills = candidate.Skills
-                    .Where(skill => keywords.Any(keyword => skill.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
-                    .Take(2)
-                    .ToList();
+                    expandedKeywords.Any(keyword =>
+                        tag.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
+                var score = AiSkillMatcher.ScoreCandidateSkills(
+                    candidate.Skills,
+                    expandedKeywords,
+                    candidate.Department,
+                    candidate.Designation)
+                    + tagScore * 10
+                    + candidate.FreeHours / 10;
 
                 var reason = matchedSkills.Count > 0
                     ? $"{string.Join(" and ", matchedSkills)} align with the requirement; {candidate.FreeHours} hrs/week available."
-                    : $"Strong bench availability ({candidate.FreeHours} hrs/week) with relevant delivery experience.";
+                    : tagScore > 0
+                        ? $"Recent activity aligns with the requirement; {candidate.FreeHours} hrs/week available."
+                        : $"Strong bench availability ({candidate.FreeHours} hrs/week) with relevant delivery experience.";
 
                 return new { candidate.Id, candidate.Name, score, reason };
             })
+            .Where(item => item.score > 0)
             .OrderByDescending(item => item.score)
             .Take(3)
             .Select(item => new { employeeId = item.Id, reason = item.reason })
             .ToList();
+
+        if (ranked.Count == 0)
+        {
+            ranked = candidates
+                .OrderByDescending(candidate => candidate.FreeHours)
+                .Take(3)
+                .Select(candidate => new
+                {
+                    employeeId = candidate.Id,
+                    reason = $"Available capacity ({candidate.FreeHours} hrs/week)."
+                })
+                .ToList();
+        }
 
         return JsonSerializer.Serialize(new { matches = ranked });
     }
@@ -368,11 +387,31 @@ public partial class DeterministicLlmProvider
             var freeHours = freeMatch.Success ? int.Parse(freeMatch.Groups["hours"].Value) : 0;
             var skills = ExtractListSegment(line, "skills:");
             var tags = ExtractListSegment(line, "recent tags:");
+            var department = ExtractInlineValue(line, "dept ");
+            var designation = ExtractInlineValue(line, "designation ");
 
-            candidates.Add(new ParsedCandidate(id, name, freeHours, skills, tags));
+            candidates.Add(new ParsedCandidate(id, name, freeHours, skills, tags, department, designation));
         }
 
         return candidates;
+    }
+
+    private static string ExtractInlineValue(string line, string label)
+    {
+        var index = line.IndexOf(label, StringComparison.OrdinalIgnoreCase);
+        if (index < 0)
+        {
+            return string.Empty;
+        }
+
+        var start = index + label.Length;
+        var end = line.IndexOf(';', start);
+        if (end < 0)
+        {
+            end = line.Length;
+        }
+
+        return line[start..end].Trim();
     }
 
     private static IReadOnlyList<string> ExtractListSegment(string line, string label)
@@ -434,7 +473,9 @@ public partial class DeterministicLlmProvider
         string Name,
         int FreeHours,
         IReadOnlyList<string> Skills,
-        IReadOnlyList<string> Tags);
+        IReadOnlyList<string> Tags,
+        string? Department,
+        string? Designation);
 
     private sealed record TeamBuilderCandidate(
         int Id,

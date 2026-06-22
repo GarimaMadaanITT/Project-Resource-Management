@@ -121,12 +121,53 @@ Use Swagger **Authorize** button with `Bearer {token}`.
 | GET | `/api/manager/projects/{id}` | Project detail + risk flags |
 | GET | `/api/manager/timesheets` | Team timesheets by week |
 | GET | `/api/manager/timesheets/employees/{id}` | Employee timesheet detail |
+| POST | `/api/manager/timesheets/employees/{id}/restore-timesheet-access` | Restore frozen timesheet access |
+
+### Email notifications (Phase 10) — scheduler + Mailtrap
+
+Every notification is **logged to the API console** and sent via **SMTP** when configured.
+
+**Mailtrap Email Sandbox** (recommended for testing):
+
+1. In [Mailtrap](https://mailtrap.io): **Email Testing → Sandboxes → Integration → SMTP**
+2. Store credentials in User Secrets (never commit):
+
+```powershell
+cd Server/Prm.Api
+dotnet user-secrets set "Email:Smtp:Host" "sandbox.smtp.mailtrap.io"
+dotnet user-secrets set "Email:Smtp:Port" "2525"
+dotnet user-secrets set "Email:Smtp:Username" "<your-mailtrap-username>"
+dotnet user-secrets set "Email:Smtp:Password" "<your-mailtrap-password>"
+dotnet user-secrets set "Email:Smtp:UseSsl" "false"
+```
+
+3. Restart the API. Emails appear in the **Mailtrap sandbox inbox** and in **terminal logs**.
+
+**Notification flows:**
+
+| Flow | Trigger | Recipients |
+|------|---------|------------|
+| Timesheet Reminder 1 & 2 | Scheduler (Mon/Tue after Friday deadline) | Employee |
+| Timesheet Freeze | Scheduler (Wed if still missing) | Employee + manager |
+| Project At Risk | Health changes to `AtRisk` | Project manager |
+
+Timesheet statuses: **Pending** (grace Mon–Tue), **Missed** (after freeze). Managers restore access from **Team Timesheets → [R] Restore**.
+
+**Instant testing (Admin JWT):**
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/admin/scheduler/seed-notification-test-data` | Reset timesheet test scenarios + clear timesheet notification logs |
+| POST | `/api/admin/scheduler/run-now` | Run scheduler immediately (sends pending emails) |
+| POST | `/api/admin/scheduler/force-timesheet-compliance/{username}` | Send Reminder 2 + freeze immediately (testing) |
+
+Or CLI: `dotnet run --project Server/Prm.Api -- --seed-notification-test-data` then `--force-timesheet-compliance ravi.kumar`
 
 ### AI APIs (Phase 8) — requires Manager JWT
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| POST | `/api/ai/skill-match` | Natural-language resource search (capacity pre-filter + LLM) |
+| POST | `/api/ai/skill-match` | Natural-language org-wide resource search (capacity pre-filter + LLM) |
 | GET | `/api/ai/risk-summary/{projectId}` | Plain-English project risk paragraph |
 
 Configure **Gemini** or **Groq** via Admin → System Configuration. Without an API key, the server uses a deterministic offline fallback so the feature remains testable.
@@ -152,6 +193,7 @@ Configure **Gemini** or **Groq** via Admin → System Configuration. Without an 
 | 7 — Scheduler + audit logs | Complete |
 | 8 — AI features | Complete |
 | 9 — Tests, console client, docs | Complete |
+| 10 — Email notifications (Mailtrap + compliance) | Complete |
 
 ## Assignment notes — SOLID & design patterns
 

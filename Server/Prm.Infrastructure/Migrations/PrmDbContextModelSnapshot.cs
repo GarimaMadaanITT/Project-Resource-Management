@@ -22,43 +22,6 @@ namespace Prm.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Prm.Domain.Entities.ActivityTag", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("TagCategory")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("TagCode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("TagName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TagCode")
-                        .IsUnique();
-
-                    b.ToTable("activity_tags", (string)null);
-                });
-
             modelBuilder.Entity("Prm.Domain.Entities.AiRequestLog", b =>
                 {
                     b.Property<int>("Id")
@@ -222,6 +185,54 @@ namespace Prm.Infrastructure.Migrations
                     b.ToTable("project_milestones", (string)null);
                 });
 
+            modelBuilder.Entity("Prm.Domain.Entities.NotificationLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NotificationType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("RecipientEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ReferenceKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NotificationType", "ReferenceKey")
+                        .IsUnique();
+
+                    b.ToTable("notification_logs", (string)null);
+                });
+
             modelBuilder.Entity("Prm.Domain.Entities.Permission", b =>
                 {
                     b.Property<int>("Id")
@@ -323,6 +334,12 @@ namespace Prm.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("TimesheetFrozenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("TimesheetSubmissionFrozen")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -447,42 +464,6 @@ namespace Prm.Infrastructure.Migrations
                     b.ToTable("skills", (string)null);
                 });
 
-            modelBuilder.Entity("Prm.Domain.Entities.SystemConfiguration", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ConfigKey")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("ConfigValue")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("UpdatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ConfigKey")
-                        .IsUnique();
-
-                    b.HasIndex("UpdatedByUserId");
-
-                    b.ToTable("system_configurations", (string)null);
-                });
-
             modelBuilder.Entity("Prm.Domain.Entities.SystemSetting", b =>
                 {
                     b.Property<int>("Id")
@@ -549,6 +530,51 @@ namespace Prm.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("timesheets", (string)null);
+                });
+
+            modelBuilder.Entity("Prm.Domain.Entities.TimesheetCompliance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("FreezeNotifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("Reminder1SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("Reminder2SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ReminderCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ResourceProfileId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("WeekStart")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResourceProfileId", "WeekStart")
+                        .IsUnique();
+
+                    b.ToTable("timesheet_compliance", (string)null);
                 });
 
             modelBuilder.Entity("Prm.Domain.Entities.TimesheetEntry", b =>
@@ -793,20 +819,21 @@ namespace Prm.Infrastructure.Migrations
                     b.Navigation("Role");
                 });
 
-            modelBuilder.Entity("Prm.Domain.Entities.SystemConfiguration", b =>
-                {
-                    b.HasOne("Prm.Domain.Entities.User", "UpdatedByUser")
-                        .WithMany()
-                        .HasForeignKey("UpdatedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("UpdatedByUser");
-                });
-
             modelBuilder.Entity("Prm.Domain.Entities.Timesheet", b =>
                 {
                     b.HasOne("Prm.Domain.Entities.ResourceProfile", "ResourceProfile")
                         .WithMany("Timesheets")
+                        .HasForeignKey("ResourceProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ResourceProfile");
+                });
+
+            modelBuilder.Entity("Prm.Domain.Entities.TimesheetCompliance", b =>
+                {
+                    b.HasOne("Prm.Domain.Entities.ResourceProfile", "ResourceProfile")
+                        .WithMany()
                         .HasForeignKey("ResourceProfileId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();

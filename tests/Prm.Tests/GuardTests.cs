@@ -55,4 +55,17 @@ public class SettingsValidatorTests
         var provider = SettingsValidator.ParseProvider("Ollama");
         Assert.Equal(LlmProviderType.Ollama, provider);
     }
+
+    [Fact]
+    public void NormalizeApiKey_Trims_Value()
+    {
+        var key = SettingsValidator.NormalizeApiKey("  test-key  ");
+        Assert.Equal("test-key", key);
+    }
+
+    [Fact]
+    public void NormalizeApiKey_Throws_For_Empty()
+    {
+        Assert.Throws<DomainException>(() => SettingsValidator.NormalizeApiKey("   "));
+    }
 }

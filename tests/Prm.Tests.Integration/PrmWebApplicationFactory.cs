@@ -26,6 +26,8 @@ public class PrmWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
         builder.UseSetting("Jwt:Key", "IntegrationTestSigningKeyAtLeast32CharsLong!");
         builder.UseSetting("Jwt:Issuer", "PrmApi");
         builder.UseSetting("Jwt:Audience", "PrmClient");
+        builder.UseSetting("Ollama:BaseUrl", "http://localhost:11434");
+        builder.UseSetting("Ollama:Model", "gemma3:12b-it-q8_0");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -34,7 +36,9 @@ public class PrmWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
                 ["ConnectionStrings:Default"] = "DataSource=prm_integration_test;Mode=Memory;Cache=Shared",
                 ["Jwt:Key"] = "IntegrationTestSigningKeyAtLeast32CharsLong!",
                 ["Jwt:Issuer"] = "PrmApi",
-                ["Jwt:Audience"] = "PrmClient"
+                ["Jwt:Audience"] = "PrmClient",
+                ["Ollama:BaseUrl"] = "http://localhost:11434",
+                ["Ollama:Model"] = "gemma3:12b-it-q8_0"
             });
         });
 

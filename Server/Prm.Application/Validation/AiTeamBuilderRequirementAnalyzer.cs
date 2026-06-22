@@ -33,15 +33,65 @@ public static partial class AiTeamBuilderRequirementAnalyzer
             return [];
         }
 
+        var bulletSegments = ExtractBulletRoleLines(requirement);
+        if (bulletSegments.Count >= 2)
+        {
+            return bulletSegments;
+        }
+
         var segments = RoleSegmentPattern()
             .Split(requirement)
             .Select(segment => segment.Trim().TrimEnd('.'))
-            .Where(segment => segment.Length > 0)
+            .Where(segment => segment.Length > 0 && !IsMetadataLine(segment))
             .ToList();
+
+        if (segments.Count >= 2)
+        {
+            return segments;
+        }
 
         return segments.Count > 0 ? segments : [requirement.Trim()];
     }
 
-    [GeneratedRegex(@"\band a\b|\band an\b", RegexOptions.IgnoreCase)]
+    private static List<string> ExtractBulletRoleLines(string requirement)
+    {
+        var results = new List<string>();
+
+        foreach (var rawLine in requirement.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var line = rawLine.Trim();
+            if (line.StartsWith('•') || line.StartsWith('-') || line.StartsWith('*'))
+            {
+                line = line.TrimStart('•', '-', '*', ' ').Trim();
+            }
+            else if (NumberedBulletPattern().IsMatch(line))
+            {
+                line = NumberedBulletPattern().Replace(line, string.Empty).Trim();
+            }
+            else
+            {
+                continue;
+            }
+
+            if (IsMetadataLine(line) || line.Length <= 2)
+            {
+                continue;
+            }
+
+            results.Add(line);
+        }
+
+        return results;
+    }
+
+    private static bool IsMetadataLine(string line) =>
+        line.StartsWith("Team Duration", StringComparison.OrdinalIgnoreCase)
+        || line.StartsWith("Requested Roles", StringComparison.OrdinalIgnoreCase)
+        || line.StartsWith("Duration", StringComparison.OrdinalIgnoreCase);
+
+    [GeneratedRegex(@"^\d+\.\s*", RegexOptions.None)]
+    private static partial Regex NumberedBulletPattern();
+
+    [GeneratedRegex(@"\band a\b|\band an\b|\band one\b|\band\b", RegexOptions.IgnoreCase)]
     private static partial Regex RoleSegmentPattern();
 }

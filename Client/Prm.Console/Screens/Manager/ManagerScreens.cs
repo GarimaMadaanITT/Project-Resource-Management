@@ -289,19 +289,29 @@ public sealed class ManagerTimesheetsMenuScreen : IMenuScreen
         {
             var data = await _app.Api.GetTeamTimesheetsAsync(week, cancellationToken);
             System.Console.WriteLine($"Week: {ScreenHelper.FormatDate(data.WeekStart)}");
-            System.Console.WriteLine($"{"Employee",-20} {"Project",-20} {"Hrs",5} {"Status",10}");
-            System.Console.WriteLine(new string('-', 58));
+            System.Console.WriteLine($"{"Employee",-20} {"Project",-20} {"Hrs",5} {"Status",10} {"Frozen",7}");
+            System.Console.WriteLine(new string('-', 66));
             foreach (var row in data.Rows)
             {
-                System.Console.WriteLine($"{row.EmployeeName,-20} {row.ProjectName,-20} {row.Hours,5:0.##} {row.Status,10}");
+                var frozen = row.TimesheetSubmissionFrozen ? "Yes" : "No";
+                System.Console.WriteLine($"{row.EmployeeName,-20} {row.ProjectName,-20} {row.Hours,5:0.##} {row.Status,10} {frozen,7}");
             }
 
             System.Console.WriteLine();
-            System.Console.WriteLine("[V] View employee detail  [B] Back");
+            System.Console.WriteLine("[V] View employee detail  [R] Restore frozen access  [B] Back");
             var choice = ConsolePrompt.ReadLine("Choice: ").Trim();
             if (choice.Equals("B", StringComparison.OrdinalIgnoreCase))
             {
                 return MenuAction.Back;
+            }
+
+            if (choice.Equals("R", StringComparison.OrdinalIgnoreCase))
+            {
+                var restoreId = ConsolePrompt.ReadInt("Employee ID to restore: ");
+                var result = await _app.Api.RestoreTimesheetAccessAsync(restoreId, cancellationToken);
+                System.Console.WriteLine(result.Message);
+                ScreenHelper.Pause();
+                return MenuAction.None;
             }
 
             if (choice.Equals("V", StringComparison.OrdinalIgnoreCase))
@@ -309,10 +319,17 @@ public sealed class ManagerTimesheetsMenuScreen : IMenuScreen
                 var empId = ConsolePrompt.ReadInt("Employee ID: ");
                 var detail = await _app.Api.GetEmployeeTimesheetDetailAsync(empId, data.WeekStart, cancellationToken);
                 System.Console.WriteLine();
-                System.Console.WriteLine($"{detail.EmployeeName} — {detail.Status}");
+                var frozenLabel = detail.TimesheetSubmissionFrozen ? " (FROZEN)" : string.Empty;
+                System.Console.WriteLine($"{detail.EmployeeName} — {detail.Status}{frozenLabel}");
                 foreach (var entry in detail.Entries)
                 {
                     System.Console.WriteLine($"  {entry.ProjectName}: {entry.Hours} hrs — {string.Join(", ", entry.ActivityTags)}");
+                }
+
+                if (detail.TimesheetSubmissionFrozen && ConsolePrompt.ReadYesNo("Restore timesheet access for this employee?"))
+                {
+                    var result = await _app.Api.RestoreTimesheetAccessAsync(detail.EmployeeId, cancellationToken);
+                    System.Console.WriteLine(result.Message);
                 }
 
                 ScreenHelper.Pause();

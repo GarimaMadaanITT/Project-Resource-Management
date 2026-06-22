@@ -109,6 +109,18 @@ dotnet test
 
 ---
 
+## 7b. Admin — Scheduler (Email testing)
+
+| ID | Endpoint | Scenario | Expected |
+|----|----------|----------|----------|
+| SCH-01 | `POST /api/admin/scheduler/seed-notification-test-data` | Admin token | 200, `preparedEmployees` list, previous week start |
+| SCH-02 | `POST /api/admin/scheduler/run-now` | Admin token after seed | 200, timesheet + at-risk emails in Mailtrap/logs |
+| SCH-03 | `POST /api/admin/scheduler/run-now` | Manager token | 403 |
+
+**CLI (no JWT):** `dotnet run --project Server/Prm.Api -- --seed-notification-test-data` then `--run-scheduler-now`
+
+---
+
 ## 8. Admin — Audit Logs (Phase 7)
 
 | ID | Endpoint | Scenario | Expected |
@@ -161,7 +173,7 @@ Login as `ankit.shah` / `Manager@1234`.
 
 | ID | Endpoint | Scenario | Expected |
 |----|----------|----------|----------|
-| AI-01 | `POST /api/ai/skill-match` | Valid requirement on owned project | 200, matches list |
+| AI-01 | `POST /api/ai/skill-match` | Valid requirement on owned project | 200, org-wide matches list |
 | AI-02 | `POST /api/ai/skill-match` | Empty requirement | 400 |
 | AI-03 | `GET /api/ai/risk-summary/{projectId}` | Owned project | 200, summary text |
 | AI-04 | `POST /api/ai/team-builder` | Multi-role NL requirement (banking portal example) | 200, per-role FILLED/GAP |

@@ -98,16 +98,54 @@ public class OllamaLlmProviderTests
             provider.CompleteAsync(null, "System", "User", CancellationToken.None));
     }
 
+    [Fact]
+    public async Task CompleteAsync_Sends_ApiKey_Header_When_Provided()
+    {
+        string? capturedHeader = null;
+
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            if (request.Headers.TryGetValues("apikey", out var values))
+            {
+                capturedHeader = values.First();
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    """
+                    {
+                      "model": "gemma3:12b-it-q8_0",
+                      "response": "Hello there!",
+                      "done": true,
+                      "done_reason": "stop"
+                    }
+                    """,
+                    Encoding.UTF8,
+                    "application/json")
+            };
+        });
+
+        var provider = CreateProvider(handler);
+        await provider.CompleteAsync("secret-key", "System", "User", CancellationToken.None);
+
+        Assert.Equal("secret-key", capturedHeader);
+    }
+
     private static OllamaLlmProvider CreateProvider(HttpMessageHandler handler)
     {
         var factory = new StubHttpClientFactory(new HttpClient(handler)
         {
-            BaseAddress = new Uri("http://localhost:11434/")
+            BaseAddress = new Uri("http://164.52.211.238/")
         });
 
         return new OllamaLlmProvider(
             factory,
-            Options.Create(new OllamaOptions { Model = "gemma3:12b-it-q8_0" }),
+            Options.Create(new OllamaOptions
+            {
+                BaseUrl = "http://164.52.211.238",
+                Model = "gemma3:12b-it-q8_0"
+            }),
             NullLogger<OllamaLlmProvider>.Instance);
     }
 

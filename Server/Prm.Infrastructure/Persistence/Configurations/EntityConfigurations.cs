@@ -342,32 +342,6 @@ public class SystemSettingConfiguration : IEntityTypeConfiguration<SystemSetting
 
 
 
-public class SystemConfigurationEntityConfiguration : IEntityTypeConfiguration<SystemConfiguration>
-
-{
-
-    public void Configure(EntityTypeBuilder<SystemConfiguration> builder)
-
-    {
-
-        builder.ToTable("system_configurations");
-
-        builder.HasKey(x => x.Id);
-
-        builder.Property(x => x.ConfigKey).HasMaxLength(100).IsRequired();
-
-        builder.Property(x => x.ConfigValue).HasColumnType("text");
-
-        builder.HasIndex(x => x.ConfigKey).IsUnique();
-
-        builder.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.SetNull);
-
-    }
-
-}
-
-
-
 public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
 
 {
@@ -397,32 +371,6 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.HasIndex(x => new { x.EntityName, x.EntityId });
 
         builder.HasIndex(x => x.Source);
-
-    }
-
-}
-
-
-
-public class ActivityTagConfiguration : IEntityTypeConfiguration<ActivityTag>
-
-{
-
-    public void Configure(EntityTypeBuilder<ActivityTag> builder)
-
-    {
-
-        builder.ToTable("activity_tags");
-
-        builder.HasKey(x => x.Id);
-
-        builder.Property(x => x.TagCode).HasMaxLength(50).IsRequired();
-
-        builder.Property(x => x.TagName).HasMaxLength(100).IsRequired();
-
-        builder.Property(x => x.TagCategory).HasMaxLength(50).IsRequired();
-
-        builder.HasIndex(x => x.TagCode).IsUnique();
 
     }
 
@@ -469,6 +417,58 @@ public class SchedulerJobLogConfiguration : IEntityTypeConfiguration<SchedulerJo
         builder.Property(x => x.Status).HasMaxLength(20).IsRequired();
 
         builder.Property(x => x.ErrorMessage).HasColumnType("text");
+
+    }
+
+}
+
+
+
+public class TimesheetComplianceConfiguration : IEntityTypeConfiguration<TimesheetCompliance>
+
+{
+
+    public void Configure(EntityTypeBuilder<TimesheetCompliance> builder)
+
+    {
+
+        builder.ToTable("timesheet_compliance");
+
+        builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+
+        builder.HasIndex(x => new { x.ResourceProfileId, x.WeekStart }).IsUnique();
+
+        builder.HasOne(x => x.ResourceProfile).WithMany().HasForeignKey(x => x.ResourceProfileId).OnDelete(DeleteBehavior.Restrict);
+
+    }
+
+}
+
+
+
+public class NotificationLogConfiguration : IEntityTypeConfiguration<NotificationLog>
+
+{
+
+    public void Configure(EntityTypeBuilder<NotificationLog> builder)
+
+    {
+
+        builder.ToTable("notification_logs");
+
+        builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.NotificationType).HasConversion<string>().HasMaxLength(50);
+
+        builder.Property(x => x.ReferenceKey).HasMaxLength(200).IsRequired();
+
+        builder.Property(x => x.RecipientEmail).HasMaxLength(256).IsRequired();
+
+        builder.Property(x => x.Subject).HasMaxLength(500).IsRequired();
+
+        builder.HasIndex(x => new { x.NotificationType, x.ReferenceKey }).IsUnique();
 
     }
 
