@@ -8,4 +8,7 @@ public static class ValidationConstants
     public const int MinUtilisationPercent = 1;
     public const int MaxUtilisationPercent = 100;
     public const int DefaultRecentActivityWeeks = 4;
+    public const int TimesheetHistoryWeeks = 12;
+    public const int DefaultPageSize = 20;
+    public const int MaxPageSize = 100;
 }

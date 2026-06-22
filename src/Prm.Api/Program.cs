@@ -14,6 +14,11 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHealthChecks().AddDbContextCheck<PrmDbContext>();
 
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddHostedService<Prm.Infrastructure.Scheduling.PrmSchedulerHostedService>();
+}
+
 var app = builder.Build();
 
 if (args.Contains("--reset-database", StringComparer.OrdinalIgnoreCase))

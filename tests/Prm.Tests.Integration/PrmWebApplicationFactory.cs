@@ -26,6 +26,8 @@ public class PrmWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
         builder.UseSetting("Jwt:Key", "IntegrationTestSigningKeyAtLeast32CharsLong!");
         builder.UseSetting("Jwt:Issuer", "PrmApi");
         builder.UseSetting("Jwt:Audience", "PrmClient");
+        builder.UseSetting("Ollama:BaseUrl", "http://localhost:11434");
+        builder.UseSetting("Ollama:Model", "gemma3:12b-it-q8_0");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -34,7 +36,9 @@ public class PrmWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
                 ["ConnectionStrings:Default"] = "DataSource=prm_integration_test;Mode=Memory;Cache=Shared",
                 ["Jwt:Key"] = "IntegrationTestSigningKeyAtLeast32CharsLong!",
                 ["Jwt:Issuer"] = "PrmApi",
-                ["Jwt:Audience"] = "PrmClient"
+                ["Jwt:Audience"] = "PrmClient",
+                ["Ollama:BaseUrl"] = "http://localhost:11434",
+                ["Ollama:Model"] = "gemma3:12b-it-q8_0"
             });
         });
 
@@ -84,6 +88,9 @@ public class PrmWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
     public async Task<string> LoginAsManagerAsync(HttpClient client) =>
         await LoginAsync(client, "ankit.shah", "Manager@1234");
 
+    public async Task<string> LoginAsEmployeeAsync(HttpClient client) =>
+        await LoginAsync(client, "dev.patel", "Employee@1234");
+
     public async Task<string> LoginAsync(HttpClient client, string username, string password)
     {
         var response = await client.PostAsJsonAsync("/api/auth/login", new { username, password });
@@ -104,7 +111,7 @@ public class PrmWebApplicationFactory : WebApplicationFactory<Program>, IAsyncLi
         var token = login.GetProperty("token").GetString()!;
         Authorize(client, token);
 
-        if (login.GetProperty("forcePasswordChange").GetBoolean())
+        if (login.GetProperty("isTemporaryPassword").GetBoolean())
         {
             var changeResponse = await client.PostAsJsonAsync("/api/auth/change-password", new
             {

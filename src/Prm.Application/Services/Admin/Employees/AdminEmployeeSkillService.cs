@@ -11,11 +11,16 @@ public class AdminEmployeeSkillService
 {
     private readonly IEmployeeRepository _employees;
     private readonly ISkillRepository _skills;
+    private readonly IAuditLogService _auditLog;
 
-    public AdminEmployeeSkillService(IEmployeeRepository employees, ISkillRepository skills)
+    public AdminEmployeeSkillService(
+        IEmployeeRepository employees,
+        ISkillRepository skills,
+        IAuditLogService auditLog)
     {
         _employees = employees;
         _skills = skills;
+        _auditLog = auditLog;
     }
 
     public async Task<IReadOnlyList<EmployeeSkillDto>> GetSkillsAsync(int id, CancellationToken cancellationToken = default)
@@ -30,6 +35,7 @@ public class AdminEmployeeSkillService
     public async Task<EmployeeSkillDto> AddSkillAsync(
         int id,
         AddEmployeeSkillRequest request,
+        int actingUserId,
         CancellationToken cancellationToken = default)
     {
         var employee = EntityGuard.EnsureFound(
@@ -66,6 +72,18 @@ public class AdminEmployeeSkillService
         await _skills.SaveChangesAsync(cancellationToken);
 
         employeeSkill.Skill = skill;
+
+        await _auditLog.AuditAsync(
+            AuditConstants.EntityNames.EmployeeSkill,
+            id,
+            AuditConstants.Actions.Created,
+            null,
+            AuditSnapshotBuilder.EmployeeSkillSnapshot(employeeSkill),
+            actingUserId,
+            AuthConstants.RoleName(UserRole.Admin),
+            AuditConstants.Sources.User,
+            cancellationToken);
+
         return MapSkill(employeeSkill);
     }
 
@@ -73,6 +91,7 @@ public class AdminEmployeeSkillService
         int id,
         int skillId,
         UpdateEmployeeSkillRequest request,
+        int actingUserId,
         CancellationToken cancellationToken = default)
     {
         var employee = EntityGuard.EnsureFound(
@@ -85,15 +104,32 @@ public class AdminEmployeeSkillService
             await _skills.GetEmployeeSkillAsync(id, skillId, cancellationToken),
             ErrorMessages.EmployeeSkillNotFound);
 
+        var oldSnapshot = AuditSnapshotBuilder.EmployeeSkillSnapshot(employeeSkill);
+
         employeeSkill.Proficiency = EnumGuard.Parse<ProficiencyLevel>(
             StringGuard.RequireNonEmpty(request.Proficiency, "Proficiency"),
             "Proficiency");
         await _skills.SaveChangesAsync(cancellationToken);
 
+        await _auditLog.AuditAsync(
+            AuditConstants.EntityNames.EmployeeSkill,
+            id,
+            AuditConstants.Actions.Updated,
+            oldSnapshot,
+            AuditSnapshotBuilder.EmployeeSkillSnapshot(employeeSkill),
+            actingUserId,
+            AuthConstants.RoleName(UserRole.Admin),
+            AuditConstants.Sources.User,
+            cancellationToken);
+
         return MapSkill(employeeSkill);
     }
 
-    public async Task RemoveSkillAsync(int id, int skillId, CancellationToken cancellationToken = default)
+    public async Task RemoveSkillAsync(
+        int id,
+        int skillId,
+        int actingUserId,
+        CancellationToken cancellationToken = default)
     {
         var employee = EntityGuard.EnsureFound(
             await _employees.GetByIdAsync(id, cancellationToken),
@@ -105,8 +141,21 @@ public class AdminEmployeeSkillService
             await _skills.GetEmployeeSkillAsync(id, skillId, cancellationToken),
             ErrorMessages.EmployeeSkillNotFound);
 
+        var oldSnapshot = AuditSnapshotBuilder.EmployeeSkillSnapshot(employeeSkill);
+
         await _skills.RemoveEmployeeSkillAsync(employeeSkill, cancellationToken);
         await _skills.SaveChangesAsync(cancellationToken);
+
+        await _auditLog.AuditAsync(
+            AuditConstants.EntityNames.EmployeeSkill,
+            id,
+            AuditConstants.Actions.Removed,
+            oldSnapshot,
+            null,
+            actingUserId,
+            AuthConstants.RoleName(UserRole.Admin),
+            AuditConstants.Sources.User,
+            cancellationToken);
     }
 
     private static EmployeeSkillDto MapSkill(EmployeeSkill employeeSkill) =>

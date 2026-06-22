@@ -28,10 +28,10 @@ public class ManagerTimesheetsIntegrationTests : IAsyncLifetime
     public async Task GetTeamTimesheets_Returns_Ravi_Entries_For_Seeded_Week()
     {
         var response = await _client.GetFromJsonAsync<TimesheetsResponse>(
-            "/api/manager/timesheets?weekStart=2026-05-05");
+            "/api/manager/timesheets?weekStart=2026-05-04");
 
         Assert.NotNull(response);
-        Assert.Equal(new DateOnly(2026, 5, 5), response!.WeekStart);
+        Assert.Equal(new DateOnly(2026, 5, 4), response!.WeekStart);
         Assert.Contains(response.Rows, row =>
             row.EmployeeName == "Ravi Kumar"
             && row.ProjectName == "Alpha Portal"
@@ -46,7 +46,7 @@ public class ManagerTimesheetsIntegrationTests : IAsyncLifetime
         var raviId = dashboard!.Full.First(e => e.Name == "Ravi Kumar").Id;
 
         var detail = await _client.GetFromJsonAsync<EmployeeTimesheetDetailResponse>(
-            $"/api/manager/timesheets/employees/{raviId}?weekStart=2026-05-05");
+            $"/api/manager/timesheets/employees/{raviId}?weekStart=2026-05-04");
 
         Assert.NotNull(detail);
         Assert.Equal("Ravi Kumar", detail!.EmployeeName);
@@ -64,7 +64,7 @@ public class ManagerTimesheetsIntegrationTests : IAsyncLifetime
         var devId = dashboard!.Partial.First(e => e.Name == "Dev Patel").Id;
 
         var detail = await _client.GetFromJsonAsync<EmployeeTimesheetDetailResponse>(
-            $"/api/manager/timesheets/employees/{devId}?weekStart=2026-05-05");
+            $"/api/manager/timesheets/employees/{devId}?weekStart=2026-05-04");
 
         Assert.NotNull(detail);
         Assert.Equal("Missed", detail!.Status);
@@ -83,7 +83,7 @@ public class ManagerTimesheetsIntegrationTests : IAsyncLifetime
         PrmWebApplicationFactory.Authorize(nehaClient, token);
 
         var response = await nehaClient.GetAsync(
-            $"/api/manager/timesheets/employees/{raviId}?weekStart=2026-05-05");
+            $"/api/manager/timesheets/employees/{raviId}?weekStart=2026-05-04");
 
         await PrmApiAssertions.AssertStatusAsync(response, HttpStatusCode.NotFound);
     }

@@ -10,17 +10,21 @@ Learn & Code Final Project — REST API backend built with **.NET 8** and **Clea
 ## Solution structure
 
 ```
-src/
+Client/                 Console UI (HTTP REST client — Prm.Console)
+Server/
   Prm.Domain/           Entities, enums, domain rules
   Prm.Application/      Services, DTOs, interfaces, validators
   Prm.Infrastructure/   EF Core, repositories, external services
   Prm.Api/              REST API, Swagger, DI wiring
 tests/
   Prm.Tests/            Unit tests
+  Prm.Tests.Integration/
 docs/
   BRD.md                Business requirements
   PROJECT_DOCUMENTATION.md  Full project docs (architecture, phases, APIs, decisions)
   NEON_SETUP.md         Neon PostgreSQL setup
+tools/
+  Prm.DbReset/          Database reset utility
 ```
 
 **Dependency flow:** Domain ← Application ← Infrastructure ← Api
@@ -30,18 +34,26 @@ docs/
 ```bash
 dotnet restore
 dotnet build
-dotnet run --project src/Prm.Api
+dotnet run --project Server/Prm.Api
 ```
 
 - Swagger UI: `https://localhost:7xxx/swagger` (see console output for port)
 - Health check: `GET https://localhost:7xxx/health`
+
+### Console client
+
+```bash
+dotnet run --project Client/Prm.Console
+```
+
+Start the **server first**. See [Client/README.md](Client/README.md).
 
 ## Configuration
 
 Neon PostgreSQL connection string is stored in **User Secrets** (not in git). See [docs/NEON_SETUP.md](docs/NEON_SETUP.md).
 
 ```powershell
-cd src/Prm.Api
+cd Server/Prm.Api
 dotnet user-secrets set "ConnectionStrings:Default" "Host=...;Database=neondb;..."
 ```
 
@@ -57,7 +69,7 @@ On startup the API applies pending migrations and runs seed data (bootstrap admi
 Configure JWT in User Secrets (minimum 32-char key):
 
 ```powershell
-cd src/Prm.Api
+cd Server/Prm.Api
 dotnet user-secrets set "Jwt:Key" "YourSecretKeyAtLeast32CharactersLong!"
 dotnet user-secrets set "Jwt:Issuer" "PrmApi"
 dotnet user-secrets set "Jwt:Audience" "PrmClient"
@@ -94,7 +106,79 @@ Use Swagger **Authorize** button with `Bearer {token}`.
 | GET/POST/PUT | `/api/admin/projects` | Projects CRUD |
 | GET/POST/PUT | `/api/admin/projects/{id}/milestones` | Milestones |
 | GET | `/api/admin/allocations` | Company-wide active allocations |
-| GET/PUT | `/api/admin/settings` | System configuration |
+| GET/PUT | `/api/admin/settings` | System configuration (LLM provider/key) |
+| GET | `/api/admin/audit-logs` | Paginated audit trail |
+
+### Manager APIs — requires Manager JWT
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/manager/dashboard` | Team bench / partial / full view |
+| GET | `/api/manager/dashboard/employees/{id}` | Employee drill-down |
+| POST | `/api/manager/allocations` | Create allocation |
+| POST | `/api/manager/allocations/{id}/end` | End allocation |
+| GET | `/api/manager/projects` | Manager's projects |
+| GET | `/api/manager/projects/{id}` | Project detail + risk flags |
+| GET | `/api/manager/timesheets` | Team timesheets by week |
+| GET | `/api/manager/timesheets/employees/{id}` | Employee timesheet detail |
+| POST | `/api/manager/timesheets/employees/{id}/restore-timesheet-access` | Restore frozen timesheet access |
+
+### Email notifications (Phase 10) — scheduler + Mailtrap
+
+Every notification is **logged to the API console** and sent via **SMTP** when configured.
+
+**Mailtrap Email Sandbox** (recommended for testing):
+
+1. In [Mailtrap](https://mailtrap.io): **Email Testing → Sandboxes → Integration → SMTP**
+2. Store credentials in User Secrets (never commit):
+
+```powershell
+cd Server/Prm.Api
+dotnet user-secrets set "Email:Smtp:Host" "sandbox.smtp.mailtrap.io"
+dotnet user-secrets set "Email:Smtp:Port" "2525"
+dotnet user-secrets set "Email:Smtp:Username" "<your-mailtrap-username>"
+dotnet user-secrets set "Email:Smtp:Password" "<your-mailtrap-password>"
+dotnet user-secrets set "Email:Smtp:UseSsl" "false"
+```
+
+3. Restart the API. Emails appear in the **Mailtrap sandbox inbox** and in **terminal logs**.
+
+**Notification flows:**
+
+| Flow | Trigger | Recipients |
+|------|---------|------------|
+| Timesheet Reminder 1 & 2 | Scheduler (Mon/Tue after Friday deadline) | Employee |
+| Timesheet Freeze | Scheduler (Wed if still missing) | Employee + manager |
+| Project At Risk | Health changes to `AtRisk` | Project manager |
+
+Timesheet statuses: **Pending** (grace Mon–Tue), **Missed** (after freeze). Managers restore access from **Team Timesheets → [R] Restore**.
+
+**Instant testing (Admin JWT):**
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/admin/scheduler/seed-notification-test-data` | Reset timesheet test scenarios + clear timesheet notification logs |
+| POST | `/api/admin/scheduler/run-now` | Run scheduler immediately (sends pending emails) |
+| POST | `/api/admin/scheduler/force-timesheet-compliance/{username}` | Send Reminder 2 + freeze immediately (testing) |
+
+Or CLI: `dotnet run --project Server/Prm.Api -- --seed-notification-test-data` then `--force-timesheet-compliance ravi.kumar`
+
+### AI APIs (Phase 8) — requires Manager JWT
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/ai/skill-match` | Natural-language org-wide resource search (capacity pre-filter + LLM) |
+| GET | `/api/ai/risk-summary/{projectId}` | Plain-English project risk paragraph |
+
+Configure **Gemini** or **Groq** via Admin → System Configuration. Without an API key, the server uses a deterministic offline fallback so the feature remains testable.
+
+### Employee APIs — requires Employee JWT
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET/POST | `/api/employee/timesheets` | History + submit timesheet |
+| GET | `/api/employee/allocations` | Active allocations |
+| GET | `/api/employee/reminders` | Missed timesheet reminder |
 
 ## Implementation phases
 
@@ -104,12 +188,24 @@ Use Swagger **Authorize** button with `Bearer {token}`.
 | 2 — Neon DB & schema | Complete |
 | 3 — Authentication | Complete |
 | 4 — Admin APIs | Complete |
-| 5 — Manager APIs | Pending |
-| 6 — Employee APIs | Pending |
-| 7 — Scheduler | Pending |
-| 8 — AI features | Pending |
-| 9 — Backend completion | Pending |
+| 5 — Manager APIs | Complete |
+| 6 — Employee APIs | Complete |
+| 7 — Scheduler + audit logs | Complete |
+| 8 — AI features | Complete |
+| 9 — Tests, console client, docs | Complete |
+| 10 — Email notifications (Mailtrap + compliance) | Complete |
 
-## Assignment notes
+## Assignment notes — SOLID & design patterns
 
-SOLID principles, design patterns, and design principles will be documented here as each phase is completed.
+| Principle / Pattern | Where in PRM |
+|---------------------|--------------|
+| **Single Responsibility (S)** | Separate services per domain (`ManagerAiService`, `AdminEmployeeService`, `EmployeeTimesheetService`) — each class owns one use case area |
+| **Open/Closed (O)** | Validators/guards (`AllocationValidator`, `ManagerScopeGuard`) extend behaviour without modifying entities |
+| **Liskov Substitution (L)** | Repository interfaces (`IEmployeeRepository`, etc.) — Infrastructure implementations are interchangeable in tests via Moq |
+| **Interface Segregation (I)** | Focused interfaces (`IManagerAiService`, `ILlmCompletionService`) instead of one giant service contract |
+| **Dependency Inversion (D)** | API controllers depend on Application interfaces; Infrastructure implements them (`DependencyInjection.cs`) |
+| **Repository** | `IUserRepository`, `IProjectRepository`, … — persistence isolated from business logic |
+| **Strategy** | `GeminiLlmProvider` / `GroqLlmProvider` selected by `LlmCompletionService` from admin settings |
+| **Factory (hosted)** | `LlmCompletionService` resolves the correct LLM provider at runtime |
+
+See also [docs/PROJECT_DOCUMENTATION.md](docs/PROJECT_DOCUMENTATION.md) and [docs/CLEAN_CODE_STANDARDS.md](docs/CLEAN_CODE_STANDARDS.md).

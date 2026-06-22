@@ -43,11 +43,13 @@ public class EmployeeRepository : IEmployeeRepository
         _context.Employees
             .Include(e => e.User)
             .Include(e => e.Skills).ThenInclude(s => s.Skill)
-            .Include(e => e.Allocations)
+            .Include(e => e.Allocations).ThenInclude(a => a.Project)
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
     public Task<Employee?> GetByUserIdAsync(int userId, CancellationToken cancellationToken = default) =>
-        _context.Employees.FirstOrDefaultAsync(e => e.UserId == userId, cancellationToken);
+        _context.Employees
+            .Include(e => e.User)
+            .FirstOrDefaultAsync(e => e.UserId == userId, cancellationToken);
 
     public async Task AddAsync(Employee employee, CancellationToken cancellationToken = default)
     {
@@ -66,6 +68,7 @@ public class EmployeeRepository : IEmployeeRepository
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         return await _context.Allocations
+            .Include(a => a.Project)
             .Where(a => a.EmployeeId == employeeId && a.FromDate <= today && a.ToDate >= today)
             .ToListAsync(cancellationToken);
     }
@@ -122,4 +125,11 @@ public class EmployeeRepository : IEmployeeRepository
             .FirstOrDefaultAsync(
                 e => e.Id == employeeId && e.ManagerId == managerEmployeeId,
                 cancellationToken);
+
+    public async Task<IReadOnlyList<Employee>> GetAllActiveWithAllocationsAsync(CancellationToken cancellationToken = default) =>
+        await _context.Employees
+            .Include(e => e.Allocations)
+            .Where(e => e.IsActive)
+            .OrderBy(e => e.Id)
+            .ToListAsync(cancellationToken);
 }

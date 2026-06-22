@@ -37,5 +37,44 @@ public class AdminSettingsIntegrationTests : PrmIntegrationTestBase
         await PrmApiAssertions.AssertStatusAsync(response, HttpStatusCode.BadRequest);
     }
 
+    [Fact]
+    public async Task Update_LlmProvider_Succeeds()
+    {
+        var response = await Client.PutAsJsonAsync("/api/admin/settings", new { llmProvider = "Groq" });
+        await PrmApiAssertions.AssertStatusAsync(response, HttpStatusCode.OK);
+
+        var settings = await response.Content.ReadFromJsonAsync<SettingsDto>();
+        Assert.Equal("Groq", settings!.LlmProvider);
+    }
+
+    [Fact]
+    public async Task Update_LlmApiKey_Succeeds_And_Masks_On_Get()
+    {
+        const string apiKey = "integration-test-gemini-key";
+
+        var updateResponse = await Client.PutAsJsonAsync("/api/admin/settings", new
+        {
+            llmProvider = "Gemini",
+            llmApiKey = apiKey
+        });
+        await PrmApiAssertions.AssertStatusAsync(updateResponse, HttpStatusCode.OK);
+
+        var updated = await updateResponse.Content.ReadFromJsonAsync<SettingsDto>();
+        Assert.Equal("Gemini", updated!.LlmProvider);
+        Assert.Contains("****", updated.LlmApiKeyMasked);
+        Assert.DoesNotContain(apiKey, updated.LlmApiKeyMasked);
+
+        var settings = await Client.GetFromJsonAsync<SettingsDto>("/api/admin/settings");
+        Assert.Equal("Gemini", settings!.LlmProvider);
+        Assert.Contains("****", settings.LlmApiKeyMasked);
+    }
+
+    [Fact]
+    public async Task Update_With_Empty_LlmApiKey_Returns_400()
+    {
+        var response = await Client.PutAsJsonAsync("/api/admin/settings", new { llmApiKey = "   " });
+        await PrmApiAssertions.AssertStatusAsync(response, HttpStatusCode.BadRequest);
+    }
+
     private sealed record SettingsDto(string LlmProvider, string LlmApiKeyMasked, int SchedulerIntervalHours, int MaxWeeklyHours);
 }

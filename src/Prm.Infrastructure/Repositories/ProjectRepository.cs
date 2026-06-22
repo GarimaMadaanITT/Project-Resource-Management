@@ -94,4 +94,12 @@ public class ProjectRepository : IProjectRepository
 
         return await query.SumAsync(m => m.StoryPoints, cancellationToken);
     }
+
+    public async Task<IReadOnlyList<Project>> GetAllActiveWithDetailsAsync(CancellationToken cancellationToken = default) =>
+        await _context.Projects
+            .Include(p => p.Milestones)
+            .Include(p => p.Allocations).ThenInclude(a => a.Employee).ThenInclude(e => e.User)
+            .Where(p => p.Status == Domain.Enums.ProjectStatus.Active)
+            .OrderBy(p => p.Id)
+            .ToListAsync(cancellationToken);
 }

@@ -121,3 +121,21 @@ public class SystemSettingConfiguration : IEntityTypeConfiguration<SystemSetting
         builder.Property(x => x.LlmApiKey).HasMaxLength(500);
     }
 }
+
+public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
+{
+    public void Configure(EntityTypeBuilder<AuditLog> builder)
+    {
+        builder.ToTable("audit_logs");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.EntityName).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.Action).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.OldValue).HasColumnType("text");
+        builder.Property(x => x.NewValue).HasColumnType("text");
+        builder.Property(x => x.PerformedByRole).HasMaxLength(50);
+        builder.Property(x => x.Source).HasMaxLength(20).IsRequired();
+        builder.HasIndex(x => x.CreatedAtUtc);
+        builder.HasIndex(x => new { x.EntityName, x.EntityId });
+        builder.HasIndex(x => x.Source);
+    }
+}

@@ -34,8 +34,8 @@ public class AdminEmployeeService : IAdminEmployeeService
     public Task<EmployeeListResponse> GetAllAsync(string? department, string? status, CancellationToken cancellationToken = default) =>
         _queryService.GetAllAsync(department, status, cancellationToken);
 
-    public Task UpdateAsync(int id, UpdateEmployeeRequest request, CancellationToken cancellationToken = default) =>
-        _commandService.UpdateAsync(id, request, cancellationToken);
+    public Task UpdateAsync(int id, UpdateEmployeeRequest request, int actingUserId, CancellationToken cancellationToken = default) =>
+        _commandService.UpdateAsync(id, request, actingUserId, cancellationToken);
 
     public async Task<DeactivateEmployeeResponse> DeactivateAsync(int id, int actingUserId, CancellationToken cancellationToken = default)
     {
@@ -53,15 +53,15 @@ public class AdminEmployeeService : IAdminEmployeeService
     public Task<IReadOnlyList<EmployeeSkillDto>> GetSkillsAsync(int id, CancellationToken cancellationToken = default) =>
         _skillService.GetSkillsAsync(id, cancellationToken);
 
-    public Task<EmployeeSkillDto> AddSkillAsync(int id, AddEmployeeSkillRequest request, CancellationToken cancellationToken = default) =>
-        _skillService.AddSkillAsync(id, request, cancellationToken);
+    public Task<EmployeeSkillDto> AddSkillAsync(int id, AddEmployeeSkillRequest request, int actingUserId, CancellationToken cancellationToken = default) =>
+        _skillService.AddSkillAsync(id, request, actingUserId, cancellationToken);
 
-    public Task<EmployeeSkillDto> UpdateSkillAsync(int id, int skillId, UpdateEmployeeSkillRequest request, CancellationToken cancellationToken = default) =>
-        _skillService.UpdateSkillAsync(id, skillId, request, cancellationToken);
+    public Task<EmployeeSkillDto> UpdateSkillAsync(int id, int skillId, UpdateEmployeeSkillRequest request, int actingUserId, CancellationToken cancellationToken = default) =>
+        _skillService.UpdateSkillAsync(id, skillId, request, actingUserId, cancellationToken);
 
-    public Task RemoveSkillAsync(int id, int skillId, CancellationToken cancellationToken = default) =>
-        _skillService.RemoveSkillAsync(id, skillId, cancellationToken);
+    public Task RemoveSkillAsync(int id, int skillId, int actingUserId, CancellationToken cancellationToken = default) =>
+        _skillService.RemoveSkillAsync(id, skillId, actingUserId, cancellationToken);
 
-    public Task AssignManagerAsync(int id, AssignManagerRequest request, CancellationToken cancellationToken = default) =>
-        _commandService.AssignManagerAsync(id, request, cancellationToken);
+    public Task AssignManagerAsync(int id, AssignManagerRequest request, int actingUserId, CancellationToken cancellationToken = default) =>
+        _commandService.AssignManagerAsync(id, request, actingUserId, cancellationToken);
 }

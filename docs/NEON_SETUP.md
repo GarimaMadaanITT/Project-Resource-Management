@@ -7,13 +7,13 @@
 From the repo root:
 
 ```powershell
-cd src/Prm.Api
+cd Server/Prm.Api
 dotnet user-secrets set "ConnectionStrings:Default" "Host=YOUR_HOST;Database=neondb;Username=YOUR_USER;Password=YOUR_PASSWORD;SSL Mode=Require;Trust Server Certificate=true"
 ```
 
 ### Option B — `appsettings.Development.json` (gitignored)
 
-Edit `src/Prm.Api/appsettings.Development.json` and replace `REPLACE_WITH_YOUR_NEON_PASSWORD`.
+Edit `Server/Prm.Api/appsettings.Development.json` and replace `REPLACE_WITH_YOUR_NEON_PASSWORD`.
 
 Convert Neon URI to key-value form:
 
@@ -24,7 +24,7 @@ Host=ep-xxx-pooler.region.aws.neon.tech;Database=neondb;Username=...;Password=..
 ## 2. Apply migrations
 
 ```powershell
-dotnet ef database update --project src/Prm.Infrastructure --startup-project src/Prm.Api
+dotnet ef database update --project Server/Prm.Infrastructure --startup-project Server/Prm.Api
 ```
 
 Or start the API — migrations and seed run automatically on startup.
@@ -32,7 +32,7 @@ Or start the API — migrations and seed run automatically on startup.
 ## 3. Verify
 
 ```powershell
-dotnet run --project src/Prm.Api
+dotnet run --project Server/Prm.Api
 ```
 
 - `GET /health` — healthy

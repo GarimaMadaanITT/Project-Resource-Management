@@ -47,7 +47,7 @@ public class AuthIntegrationTests : PrmIntegrationTestBase
     }
 
     [Fact]
-    public async Task Admin_With_ForcePasswordChange_Blocked_From_Admin_Api()
+    public async Task Admin_With_IsTemporaryPassword_Blocked_From_Admin_Api()
     {
         await Factory.ResetDatabaseAsync();
         var client = Factory.CreateClient();
@@ -74,7 +74,7 @@ public class AuthIntegrationTests : PrmIntegrationTestBase
 
         await PrmApiAssertions.AssertStatusAsync(response, HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<ChangePasswordResponse>();
-        Assert.False(body!.ForcePasswordChange);
+        Assert.False(body!.IsTemporaryPassword);
         Assert.NotNull(body.Token);
     }
 
@@ -101,9 +101,9 @@ public class AuthIntegrationTests : PrmIntegrationTestBase
         await PrmApiAssertions.AssertStatusAsync(response, HttpStatusCode.Forbidden);
     }
 
-    private sealed record LoginResponse(string Token, MeResponse User, bool ForcePasswordChange);
+    private sealed record LoginResponse(string Token, MeResponse User, bool IsTemporaryPassword);
 
-    private sealed record ChangePasswordResponse(string Message, bool ForcePasswordChange, string? Token);
+    private sealed record ChangePasswordResponse(string Message, bool IsTemporaryPassword, string? Token);
 
     private sealed record MeResponse(int Id, string Username, string FullName, string Email, string Role);
 }

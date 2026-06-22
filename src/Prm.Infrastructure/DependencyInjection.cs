@@ -39,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<ITimesheetRepository, TimesheetRepository>();
         services.AddScoped<ISystemSettingsRepository, SystemSettingsRepository>();
         services.AddScoped<ISkillRepository, SkillRepository>();
+        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.AddScoped<ITokenService, JwtTokenService>();
         services.AddScoped<IDatabaseHealthService, DatabaseHealthService>();

@@ -1,5 +1,4 @@
 using Prm.Application.Validation;
-using Prm.Domain.Entities;
 using Prm.Domain.Enums;
 using Prm.Domain.Exceptions;
 
@@ -10,27 +9,26 @@ public class EmployeeGuardTests
     [Fact]
     public void EnsureActive_Throws_For_Inactive_Employee()
     {
-        var employee = new Employee { IsActive = false };
+        var resourceProfile = TestDataHelpers.CreateResourceProfile(isActive: false);
 
-        var ex = Assert.Throws<DomainException>(() => EmployeeGuard.EnsureActive(employee));
+        var ex = Assert.Throws<DomainException>(() => EmployeeGuard.EnsureActive(resourceProfile));
         Assert.Contains("inactive", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public void EnsureActiveManager_Throws_For_Inactive_Manager_User()
     {
-        var managerUser = new User { Role = UserRole.Manager, IsActive = false };
-        var managerEmployee = new Employee { IsActive = true };
+        var managerUser = TestDataHelpers.CreateUser(UserRole.Manager, isActive: false);
 
-        var ex = Assert.Throws<DomainException>(() => EmployeeGuard.EnsureActiveManager(managerUser, managerEmployee));
+        var ex = Assert.Throws<DomainException>(() => EmployeeGuard.EnsureActiveManager(managerUser));
         Assert.Contains("inactive", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void EnsureActiveManager_Throws_When_Manager_Has_No_Employee_Profile()
+    public void EnsureActiveManager_Throws_When_User_Is_Not_Manager()
     {
-        var managerUser = new User { Role = UserRole.Manager, IsActive = true };
+        var employeeUser = TestDataHelpers.CreateUser(UserRole.Employee);
 
-        Assert.Throws<DomainException>(() => EmployeeGuard.EnsureActiveManager(managerUser, null));
+        Assert.Throws<DomainException>(() => EmployeeGuard.EnsureActiveManager(employeeUser));
     }
 }
